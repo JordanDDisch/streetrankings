@@ -33,7 +33,7 @@ const Page = () => {
       <Heading as="h3" my={4}>Contact Us</Heading>
       <p>If you have any questions, feel free to contact us at: <a href="mailto:jordanddisch@gmail.com">jordanddisch@gmail.com</a></p>
 
-      <blockquote>"Capture the essence of the street – one photo at a time."</blockquote>
+      <blockquote>&quot;Capture the essence of the street – one photo at a time.&quot;</blockquote>
 
       <Heading as="h3" my={4}>Get Started Today</Heading>
       <p><em>Join the community of street photographers, and start sharing your unique perspective with the world!</em></p>
