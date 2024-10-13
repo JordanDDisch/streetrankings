@@ -11,11 +11,13 @@ import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
 import { Trash2Icon, ChevronDownIcon } from 'lucide-react'
 import { Heading } from "@/components/ui/heading";
+import { Spinner } from "@/components/ui/spinner";
 
 const Listing = (): JSX.Element => {
   const [files, setFiles] = useState<File[]>([]);
   const [images, setImages] = useState<HTMLImageElement[]>([]);
   const [template, setTemplate] = useState<string>(Template.STORY);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const templateOptions = [{
     label: "Story",
@@ -45,6 +47,7 @@ const Listing = (): JSX.Element => {
   // Handle form submission to process the image
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setIsLoading(true);
 
     if (!files || files.length === 0) return;
 
@@ -70,6 +73,7 @@ const Listing = (): JSX.Element => {
             return imageObject;
           })
         );
+        setIsLoading(false);
         setImages(newImages);
         console.log("Images processed successfully");
       } else {
@@ -150,7 +154,13 @@ const Listing = (): JSX.Element => {
           </FileUpload.ItemGroup>
           <FileUpload.HiddenInput />
         </FileUpload.Root>
-        <Button width="fit-content" type="submit">Upload and Process Images</Button>
+        <Button 
+          width="fit-content"
+           type="submit" 
+           disabled={isLoading} 
+        >
+          {isLoading ? <Spinner /> : "Upload and Process Images"}
+        </Button>
       </form>}
       {images && images.length > 0 && <div
         className={css({

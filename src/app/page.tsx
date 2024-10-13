@@ -7,8 +7,8 @@ export default function Home() {
   return (
     <main>
       <div className={css({
-        maxWidth: "1080px",
-        margin: 10,
+        maxWidth: "960px",
+        m: 10
       })}>
         <div className={css({
           display: "flex",
