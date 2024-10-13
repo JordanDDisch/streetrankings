@@ -4,12 +4,6 @@ import { fileTypeFromBuffer } from 'file-type';
 import { Template } from "@/types/templates";
 import sizeOf from 'image-size';
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
-
 const getTemplateDimensions = (template: Template): { width: number, height: number } => {
   switch(template) {
     case Template.STORY:
