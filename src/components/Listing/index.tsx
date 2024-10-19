@@ -124,7 +124,7 @@ const Listing = (): JSX.Element => {
         </Select.Root>
         <FileUpload.Root
           onFileChange={(details) => setFiles(details.acceptedFiles)}
-          maxFiles={10}
+          maxFiles={30}
         >
           <FileUpload.Dropzone>
             <FileUpload.Label>Drop your files here</FileUpload.Label>
