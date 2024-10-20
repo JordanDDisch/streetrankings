@@ -70,32 +70,47 @@ export async function getUserAssets() {
         },
       })
 
-      const rawText = await assetsRequest.text();
+      const assetsRawText = await assetsRequest.text();
       
       // Strip off the `while (1) {}` part before parsing the JSON
-      const jsonResponse = rawText.replace(/^while\s*\(1\)\s*{\s*}\s*/, '');  // Removes the prefix
+      const assetsJsonResponse = JSON.parse(assetsRawText.replace(/^while\s*\(1\)\s*{\s*}\s*/, ''));  // Removes the prefix
+      const assetId = assetsJsonResponse.resources[0].id
 
-      const firstImage = JSON.parse(jsonResponse).resources[0].links["/rels/rendition_type/1280"].href
-
-      const response = await fetch(`https://lr.adobe.io/v2/catalogs/${catalogId}/${firstImage}`, {
+      const assetRequest = await fetch(`https://lr.adobe.io/v2/catalogs/${catalogId}/assets/${assetId}`, {
         headers: {
           'Authorization': `Bearer ${userCode}`,
           'X-API-Key': adobeApiKey,
         }
       })
 
-      const imageBuffer = await response.arrayBuffer();
+      const assetRawText = await assetRequest.text()
 
-      // Convert ArrayBuffer to Blob
-      const blob = new Blob([imageBuffer], { type: 'image/jpeg' }); // Assuming the image is a JPEG
+      const assetJsonResponse = JSON.parse(assetRawText.replace(/^while\s*\(1\)\s*{\s*}\s*/, ''));
 
-      // Create a URL for the Blob
-      const imageUrl = URL.createObjectURL(blob);
+      const imageRatio = assetJsonResponse.payload.importSource.originalWidth / assetJsonResponse.payload.importSource.originalHeight
 
-      console.log(imageUrl)
+      const imageWidth = 800
+      const imageHeight = 800 / imageRatio
+
+      const assetResponse = await fetch(`https://lr.adobe.io/v2/catalogs/${catalogId}/assets/${assetId}/renditions/thumbnail2x`, {
+        headers: {
+          'Authorization': `Bearer ${userCode}`,
+          'X-API-Key': adobeApiKey,
+          mode: 'cors'
+        }
+      })
+
+      console.log(assetResponse)
+
+      const imageBlob = await assetResponse.blob();
+      const imageUrl = URL.createObjectURL(imageBlob);
 
       // Now you can set this URL as the src of an image element in the DOM
-      return imageUrl;
+      return { 
+        imageUrl, 
+        imageWidth, 
+        imageHeight 
+      };
     }
   } 
 }

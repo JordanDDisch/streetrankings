@@ -1,14 +1,14 @@
 import Listing from "@/components/Listing";
 import { Heading } from "@/components/ui/heading";
 import { css } from "@/styled-system/css"
+import Image from "next/image";
+import ImageGallery from "@/components/ImageGallery";
 import { getUserInfo, getUserAssets } from './actions/sessions';
 import './globals.css';
 
 export default async function Page() {
   const userInfo = await getUserInfo()
   const userAssets = await getUserAssets()
-
-  console.log('userCatalog', userAssets)
 
   return (
     <div className={css({
@@ -18,7 +18,7 @@ export default async function Page() {
       mb: 4
     })}>
       {userInfo && <div>Welcome {userInfo.full_name}</div>}
-      {userAssets && <img src={userAssets} alt="User Asset" />}
+      {userAssets && <ImageGallery images={[userAssets]} />}
       <Heading as="h1" size="4xl">
         Street Rankings
       </Heading>
