@@ -133,8 +133,14 @@ resource "google_compute_instance" "vm_instance" {
     systemctl start docker
     systemctl enable docker
 
-    # Configure Docker to use GCR
-    gcloud auth configure-docker --quiet
+    # Install Google Cloud SDK
+    apt-get install -y apt-transport-https ca-certificates gnupg
+    echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
+    apt-get update && apt-get install -y google-cloud-cli
+
+    # Configure Docker authentication for Artifact Registry
+    gcloud auth configure-docker $REGION-docker.pkg.dev --quiet
 
     # Configure Nginx as reverse proxy
     cat > /etc/nginx/sites-available/default <<'EOL'
