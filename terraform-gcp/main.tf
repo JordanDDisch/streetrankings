@@ -13,10 +13,41 @@ provider "google" {
   zone    = "australia-southeast1-b"
 }
 
+# Create Artifact Registry Repository
+resource "google_artifact_registry_repository" "docker_repo" {
+  location      = "australia-southeast1"
+  repository_id = "streetrankings"
+  description   = "Docker repository for Street Rankings"
+  format        = "DOCKER"
+
+  # Protect against accidental deletion
+  lifecycle {
+    prevent_destroy = true
+  }
+
+  # Configure cleanup policies
+  cleanup_policies {
+    id     = "keep-minimum-versions"
+    action = "DELETE"
+    condition {
+      tag_state    = "TAGGED"
+      older_than   = "2592000s"  # 30 days
+      tag_prefixes = ["v"]
+    }
+  }
+}
+
 # Create a service account for the VM
 resource "google_service_account" "vm_service_account" {
   account_id   = "streetrankings-sa"
   display_name = "Street Rankings VM Service Account"
+}
+
+# Add necessary roles to the service account
+resource "google_project_iam_member" "artifact_registry_reader" {
+  project = "tilligery-connect"
+  role    = "roles/artifactregistry.reader"
+  member  = "serviceAccount:${google_service_account.vm_service_account.email}"
 }
 
 # Add necessary roles to the service account
