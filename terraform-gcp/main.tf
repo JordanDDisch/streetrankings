@@ -146,12 +146,21 @@ resource "google_compute_instance" "vm_instance" {
     cat > /etc/nginx/sites-available/default <<'EOL'
     limit_req_zone $binary_remote_addr zone=mylimit:10m rate=10r/s;
 
+    # Set client body size to 100M
+    client_max_body_size 100M;
+
     server {
         listen 80;
         server_name _;
 
         # Enable rate limiting
         limit_req zone=mylimit burst=20 nodelay;
+
+        # Increase timeouts for large uploads
+        proxy_connect_timeout 300;
+        proxy_send_timeout 300;
+        proxy_read_timeout 300;
+        send_timeout 300;
 
         location / {
             proxy_pass http://localhost:3000;
