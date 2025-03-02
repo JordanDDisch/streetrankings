@@ -60,6 +60,7 @@ export async function getUserAssets() {
   const userCatalog = await getUserCatalog()
   if (cookies().get('session')?.value && adobeApiKey) {
     const userCode = cookies().get('session')?.value;
+    
     const catalogId = userCatalog?.id
 
     if(userCatalog && adobeApiKey) {

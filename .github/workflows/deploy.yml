@@ -1,0 +1,76 @@
+name: Deploy to GCP
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  PROJECT_ID: tilligery-connect
+  GCE_INSTANCE: streetrankings-server
+  GCE_INSTANCE_ZONE: australia-southeast1-b
+
+jobs:
+  deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+      with:
+        project_id: ${{ env.PROJECT_ID }}
+        service_account_key: ${{ secrets.GCP_SA_KEY }}
+        export_default_credentials: true
+
+    - name: Configure Docker
+      run: |
+        gcloud auth configure-docker
+
+    - name: Build Docker image
+      run: |
+        docker build -t gcr.io/${{ env.PROJECT_ID }}/streetrankings:${{ github.sha }} .
+        docker push gcr.io/${{ env.PROJECT_ID }}/streetrankings:${{ github.sha }}
+
+    - name: Deploy to VM instance
+      run: |
+        # Deploy the new container
+        gcloud compute ssh ${{ env.GCE_INSTANCE }} --zone=${{ env.GCE_INSTANCE_ZONE }} --command='
+          # Pull the new image
+          docker pull gcr.io/${{ env.PROJECT_ID }}/streetrankings:${{ github.sha }} && \
+          
+          # Stop and remove the old container
+          docker stop streetrankings || true && \
+          docker rm streetrankings || true && \
+          
+          # Run the new container
+          docker run -d \
+            --name streetrankings \
+            --restart unless-stopped \
+            -p 80:80 \
+            gcr.io/${{ env.PROJECT_ID }}/streetrankings:${{ github.sha }}
+        '
+
+    - name: Health check
+      run: |
+        # Get the external IP of the instance
+        EXTERNAL_IP=$(gcloud compute instances describe ${{ env.GCE_INSTANCE }} \
+          --zone=${{ env.GCE_INSTANCE_ZONE }} \
+          --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
+        
+        # Wait for the application to be ready
+        echo "Waiting for application to be ready..."
+        for i in {1..30}; do
+          if curl -s -f http://$EXTERNAL_IP/; then
+            echo "Application is ready!"
+            exit 0
+          fi
+          echo "Attempt $i: Application not ready yet..."
+          sleep 10
+        done
+        echo "Application failed to become ready"
+        exit 1 

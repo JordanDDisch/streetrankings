@@ -3,6 +3,8 @@ import sharp from 'sharp';
 import { fileTypeFromBuffer } from 'file-type';
 import { Template } from "@/types/templates";
 import sizeOf from 'image-size';
+import path from 'path';
+import fs from 'fs/promises';
 
 const getTemplateDimensions = (template: Template): { width: number, height: number } => {
   switch(template) {
@@ -26,44 +28,59 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: 'No files uploaded' }, { status: 400 });
   }
 
-  const processedImages: number[][] = [];
+  const processedImages: string[] = [];
 
-  for (const file of files) {
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+  try {
+    // Create assets directory if it doesn't exist
+    const assetsDir = path.join(process.cwd(), 'public/assets');
 
-    // Check file type
-    const detectedType = await fileTypeFromBuffer(buffer);
-    if (!detectedType || !['image/jpeg', 'image/png', 'image/gif'].includes(detectedType.mime)) {
-      return NextResponse.json({ message: `Invalid file type for ${file.name}` }, { status: 400 });
+    for (const file of files) {
+      const bytes = await file.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+
+      // Check file type
+      const detectedType = await fileTypeFromBuffer(buffer);
+      if (!detectedType || !['image/jpeg', 'image/png', 'image/gif'].includes(detectedType.mime)) {
+        return NextResponse.json({ message: `Invalid file type for ${file.name}` }, { status: 400 });
+      }
+
+      // Check file size (e.g., limit to 5MB)
+      if (buffer.length > 5 * 1024 * 1024) {
+        return NextResponse.json({ message: `File too large: ${file.name}` }, { status: 400 });
+      }
+
+      // Check image dimensions
+      const dimensions = sizeOf(buffer);
+      if (dimensions.width! > 4000 || dimensions.height! > 4000) {
+        return NextResponse.json({ message: `Image dimensions too large for ${file.name}` }, { status: 400 });
+      }
+
+      try {
+        const resizedImageBuffer = await sharp(buffer)
+          .resize({
+            width: templateWidth,
+            height: templateHeight,
+            fit: 'contain',
+            background: { r: 0, g: 0, b: 0, alpha: 1 }
+          })
+          .jpeg() // Convert to JPEG
+          .toBuffer();
+
+        // Save to assets folder
+        const fileName = `${Date.now()}-${file.name.replace(/\.[^/.]+$/, '')}.jpg`;
+        await fs.writeFile(path.join(assetsDir, fileName), resizedImageBuffer);
+
+        console.log(fileName)
+
+        processedImages.push(fileName);
+      } catch (error) {
+        console.error(`Error processing image ${file.name}:`, error);
+        return NextResponse.json({ message: `Error processing image ${file.name}` }, { status: 500 });
+      }
     }
-
-    // Check file size (e.g., limit to 5MB)
-    if (buffer.length > 5 * 1024 * 1024) {
-      return NextResponse.json({ message: `File too large: ${file.name}` }, { status: 400 });
-    }
-
-    // Check image dimensions
-    const dimensions = sizeOf(buffer);
-    if (dimensions.width! > 4000 || dimensions.height! > 4000) {
-      return NextResponse.json({ message: `Image dimensions too large for ${file.name}` }, { status: 400 });
-    }
-
-    try {
-      const resizedImageBuffer = await sharp(buffer)
-        .resize({
-          width: templateWidth,
-          height: templateHeight,
-          fit: 'contain',
-          background: { r: 0, g: 0, b: 0, alpha: 1 }
-        })
-        .toBuffer();
-
-      processedImages.push(Array.from(new Uint8Array(resizedImageBuffer)));
-    } catch (error) {
-      console.error(`Error processing image ${file.name}:`, error);
-      return NextResponse.json({ message: `Error processing image ${file.name}` }, { status: 500 });
-    }
+  } catch (error) {
+    console.error('Error creating directory or saving files:', error);
+    return NextResponse.json({ message: 'Error saving images' }, { status: 500 });
   }
 
   return NextResponse.json(processedImages);

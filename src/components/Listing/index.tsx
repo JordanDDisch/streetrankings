@@ -15,7 +15,7 @@ import { Spinner } from "@/components/ui/spinner";
 
 const Listing = (): JSX.Element => {
   const [files, setFiles] = useState<File[]>([]);
-  const [images, setImages] = useState<HTMLImageElement[]>([]);
+  const [images, setImages] = useState<string[]>([]);
   const [template, setTemplate] = useState<string>(Template.STORY);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
@@ -32,7 +32,7 @@ const Listing = (): JSX.Element => {
       const zip = new JSZip();
       
       for (let i = 0; i < images.length; i++) {
-        const response = await fetch(images[i].src);
+        const response = await fetch(images[i]);
         const blob = await response.blob();
         zip.file(`image_${i + 1}.png`, blob);
       }
@@ -40,7 +40,7 @@ const Listing = (): JSX.Element => {
       const content = await zip.generateAsync({ type: 'blob' });
       saveAs(content, 'processed_images.zip');
     } else if (images.length === 1) {
-      saveAs(images[0].src, 'processed_image.png');
+      saveAs(images[0], 'processed_image.png');
     }
   };
 
@@ -64,17 +64,9 @@ const Listing = (): JSX.Element => {
       });
 
       if (response.ok) {
-        const imageBuffers: number[][] = await response.json();
-        const newImages = await Promise.all(
-          imageBuffers.map(async (buffer: number[]) => {
-            const blob = new Blob([new Uint8Array(buffer)], { type: 'image/png' });
-            const imageObject = new window.Image();
-            imageObject.src = URL.createObjectURL(blob);
-            return imageObject;
-          })
-        );
+        const imageURLs: string[] = await response.json();
         setIsLoading(false);
-        setImages(newImages);
+        setImages(imageURLs);
         console.log("Images processed successfully");
       } else {
         console.error("Failed to process images");
@@ -182,15 +174,19 @@ const Listing = (): JSX.Element => {
             flexWrap: "wrap",
           })}
         >
-          {images.map((img, index) => (
+          {images.map((imgSrc, index) => (
             <img className={css({
                 width: "200px",
                 height: "auto"
               })}
               key={index} 
-              src={img.src}
+              src={`/assets/${imgSrc}`}
             />
           ))}
+          <button onClick={() => fetch(`/api/upload-to-instagram`, {
+            method: "POST",
+            body: JSON.stringify({image: images[0]})
+          })}>Upload to Instagram</button>
         </div>
       </div>}
     </div>
