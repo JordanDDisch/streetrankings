@@ -43,9 +43,10 @@ jobs:
       run: |
         # Deploy the new container
         gcloud compute ssh ${{ env.GCE_INSTANCE }} --zone=${{ env.GCE_INSTANCE_ZONE }} --command='
-          sudo su - <<EOF
           # Pull the new image
           docker pull ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/app:${{ github.sha }} && \
+          
+          sudo su - <<EOF
           
           # Stop and remove the old container
           docker stop streetrankings || true && \
