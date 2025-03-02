@@ -5,6 +5,7 @@ import { Template } from "@/types/templates";
 import sizeOf from 'image-size';
 import path from 'path';
 import fs from 'fs/promises';
+import { Storage } from '@google-cloud/storage';
 
 const getTemplateDimensions = (template: Template): { width: number, height: number } => {
   switch(template) {
@@ -33,6 +34,9 @@ export async function POST(req: NextRequest) {
   try {
     // Create assets directory if it doesn't exist
     const assetsDir = path.join(process.cwd(), 'public/assets');
+
+    const storage = new Storage();
+    const bucketName = 'street-rankings'; // Replace with your actual bucket name
 
     for (const file of files) {
       const bytes = await file.arrayBuffer();
@@ -68,7 +72,14 @@ export async function POST(req: NextRequest) {
 
         // Save to assets folder
         const fileName = `${Date.now()}-${file.name.replace(/\.[^/.]+$/, '')}.jpg`;
-        await fs.writeFile(path.join(assetsDir, fileName), resizedImageBuffer);
+
+        // Upload to Google Cloud Storage
+        await storage.bucket(bucketName).file(fileName).save(resizedImageBuffer, {
+          contentType: 'image/jpeg', // Adjust based on your actual file type
+          metadata: {
+            cacheControl: 'public, max-age=31536000', // Optional: Set cache control
+          }
+        });
 
         console.log(fileName)
 

@@ -12,6 +12,7 @@ env:
   GCE_INSTANCE_ZONE: australia-southeast1-b
   REGION: australia-southeast1
   REPOSITORY: streetrankings
+  STORAGE_BUCKET: street-rankings
 
 jobs:
   deploy:
@@ -53,6 +54,8 @@ jobs:
             --restart unless-stopped \
             -p 3000:80 \
             -e PORT=80 \
+            -e GOOGLE_CLOUD_PROJECT=${{ env.PROJECT_ID }} \
+            -e STORAGE_BUCKET=${{ env.STORAGE_BUCKET }} \
             ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/app:${{ github.sha }}
         '
 
