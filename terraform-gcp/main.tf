@@ -13,6 +13,9 @@ provider "google" {
   zone    = "australia-southeast1-b"
 }
 
+# Get the project information
+data "google_project" "project" {}
+
 # Create Artifact Registry Repository
 resource "google_artifact_registry_repository" "docker_repo" {
   location      = "australia-southeast1"
@@ -37,24 +40,13 @@ resource "google_artifact_registry_repository" "docker_repo" {
   }
 }
 
-# Create a service account for the VM
-resource "google_service_account" "vm_service_account" {
-  account_id   = "streetrankings-sa"
-  display_name = "Street Rankings VM Service Account"
-}
-
-# Add necessary roles to the service account
-resource "google_project_iam_member" "artifact_registry_reader" {
-  project = "tilligery-connect"
-  role    = "roles/artifactregistry.reader"
-  member  = "serviceAccount:${google_service_account.vm_service_account.email}"
-}
-
-# Add necessary roles to the service account
-resource "google_project_iam_member" "container_registry" {
-  project = "tilligery-connect"
-  role    = "roles/storage.objectViewer"
-  member  = "serviceAccount:${google_service_account.vm_service_account.email}"
+# Grant the default compute service account access to Artifact Registry
+resource "google_artifact_registry_repository_iam_member" "compute_reader" {
+  project    = "tilligery-connect"
+  location   = "australia-southeast1"
+  repository = google_artifact_registry_repository.docker_repo.name
+  role       = "roles/artifactregistry.reader"
+  member     = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
 }
 
 # Create firewall rule for HTTP
@@ -78,8 +70,8 @@ resource "google_compute_instance" "vm_instance" {
 
   tags = ["http-server"]  # Add the http-server tag
 
+  # Use the default compute service account
   service_account {
-    email  = google_service_account.vm_service_account.email
     scopes = ["cloud-platform"]
   }
 
@@ -102,6 +94,7 @@ resource "google_compute_instance" "vm_instance" {
 
     # Script Vars
     SWAP_SIZE="1G"  # Swap size of 1GB
+    REGION="australia-southeast1"
 
     # Update package list and upgrade existing packages
     apt-get update && apt-get upgrade -y
@@ -140,8 +133,14 @@ resource "google_compute_instance" "vm_instance" {
     systemctl start docker
     systemctl enable docker
 
-    # Configure Docker to use GCR
-    gcloud auth configure-docker --quiet
+    # Install Google Cloud SDK
+    apt-get install -y apt-transport-https ca-certificates gnupg
+    echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
+    apt-get update && apt-get install -y google-cloud-cli
+
+    # Configure Docker authentication for Artifact Registry
+    gcloud auth configure-docker $REGION-docker.pkg.dev --quiet
 
     # Configure Nginx as reverse proxy
     cat > /etc/nginx/sites-available/default <<'EOL'

@@ -43,22 +43,16 @@ jobs:
       run: |
         # Deploy the new container
         gcloud compute ssh ${{ env.GCE_INSTANCE }} --zone=${{ env.GCE_INSTANCE_ZONE }} --command='
-          # Pull the new image as the logged-in user
-          docker pull ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/app:${{ github.sha }}
-          
-          # Now switch to sudo for container operations
-          sudo su - <<EOF
-          # Stop and remove the old container
-          docker stop streetrankings || true && \
-          docker rm streetrankings || true && \
-          
-          # Run the new container
-          docker run -d \
+          # The VM is already using the default compute service account
+          # No need to switch users for pulling, just use sudo for Docker commands
+          sudo docker pull ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/app:${{ github.sha }} && \
+          sudo docker stop streetrankings || true && \
+          sudo docker rm streetrankings || true && \
+          sudo docker run -d \
             --name streetrankings \
             --restart unless-stopped \
             -p 80:80 \
             ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/app:${{ github.sha }}
-          EOF
         '
 
     - name: Health check
