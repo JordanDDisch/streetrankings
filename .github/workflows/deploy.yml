@@ -51,7 +51,8 @@ jobs:
           sudo docker run -d \
             --name streetrankings \
             --restart unless-stopped \
-            -p 80:80 \
+            -p 3000:80 \
+            -e PORT=80 \
             ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/app:${{ github.sha }}
         '
 
