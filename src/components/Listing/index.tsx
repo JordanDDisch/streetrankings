@@ -180,7 +180,7 @@ const Listing = (): JSX.Element => {
                 height: "auto"
               })}
               key={index} 
-              src={`/assets/${imgSrc}`}
+              src={`${imgSrc}`}
             />
           ))}
           <button onClick={() => fetch(`/api/upload-to-instagram`, {

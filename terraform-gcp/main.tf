@@ -181,3 +181,30 @@ resource "google_compute_instance" "vm_instance" {
     systemctl restart nginx
   EOF
 }
+
+# Create a Cloud Storage bucket
+resource "google_storage_bucket" "street_rankings_bucket" {
+  name          = "street-rankings"
+  location      = "australia-southeast1"
+  force_destroy = false
+  
+  # Optional: Configure versioning
+  versioning {
+    enabled = true
+  }
+  
+  # Optional: Configure lifecycle rules
+  lifecycle_rule {
+    condition {
+      age = 90  # days
+    }
+    action {
+      type = "Delete"
+    }
+  }
+  
+  # Protect against accidental deletion
+  lifecycle {
+    prevent_destroy = true
+  }
+}

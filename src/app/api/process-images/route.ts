@@ -80,10 +80,15 @@ export async function POST(req: NextRequest) {
             cacheControl: 'public, max-age=31536000', // Optional: Set cache control
           }
         });
+        
+        // Make the file publicly accessible
+        await storage.bucket(bucketName).file(fileName).makePublic();
+        
+        // Get the public URL
+        const publicUrl = `https://storage.googleapis.com/${bucketName}/${fileName}`;
+        console.log(`File uploaded and available at: ${publicUrl}`);
 
-        console.log(fileName)
-
-        processedImages.push(fileName);
+        processedImages.push(publicUrl);
       } catch (error) {
         console.error(`Error processing image ${file.name}:`, error);
         return NextResponse.json({ message: `Error processing image ${file.name}` }, { status: 500 });
