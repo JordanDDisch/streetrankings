@@ -88,7 +88,7 @@ resource "google_compute_instance" "vm_instance" {
   machine_type = "e2-medium"
   zone         = "australia-southeast1-b"
 
-  tags = ["http-server"]  # Add the http-server tag
+  tags = ["http-server", "https-server"]  # Add the http-server tag
 
   # Use the default compute service account
   service_account {

@@ -12,12 +12,14 @@ import { Select } from '@/components/ui/select'
 import { Trash2Icon, ChevronDownIcon } from 'lucide-react'
 import { Heading } from "@/components/ui/heading";
 import { Spinner } from "@/components/ui/spinner";
+import { ProcessImagesResponse } from '@/types/api';
 
 const Listing = (): JSX.Element => {
   const [files, setFiles] = useState<File[]>([]);
   const [images, setImages] = useState<string[]>([]);
   const [template, setTemplate] = useState<string>(Template.STORY);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [errors, setErrors] = useState<string[]>([]);
 
   const templateOptions = [{
     label: "Story",
@@ -63,10 +65,15 @@ const Listing = (): JSX.Element => {
         body: formData,
       });
 
+      const data: ProcessImagesResponse = await response.json();
+      setIsLoading(false);
+
       if (response.ok) {
-        const imageURLs: string[] = await response.json();
-        setIsLoading(false);
-        setImages(imageURLs);
+        setImages(data.images);
+        if (data.errors && data.errors.length > 0) {
+          setErrors(data.errors);
+          console.warn("Some images had processing errors:", data.errors);
+        }
         console.log("Images processed successfully");
       } else {
         console.error("Failed to process images");
