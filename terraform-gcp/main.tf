@@ -215,7 +215,7 @@ resource "google_compute_instance" "vm_instance" {
     
     # Only proceed if DNS is pointing to this server
     if [ "$SERVER_IP" = "$DOMAIN_IP" ]; then
-      certbot --nginx --non-interactive --agree-tos --email your-email@example.com -d streetrankings.com -d www.streetrankings.com
+      certbot --nginx --non-interactive --agree-tos --email jordanddisch@streetrankings.com -d streetrankings.com -d www.streetrankings.com
       echo "SSL certificates installed successfully!"
     else
       echo "DNS not yet propagated. Will try again later."
