@@ -79,3 +79,4 @@ tfplan
 
 # Ignore .terraform.d directory
 .terraform.d/
+.qodo

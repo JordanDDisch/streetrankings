@@ -63,6 +63,26 @@ resource "google_compute_firewall" "allow_http" {
   target_tags   = ["http-server"]
 }
 
+# Create firewall rule for HTTPS
+resource "google_compute_firewall" "allow_https" {
+  name    = "allow-https"
+  network = "default"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["443"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["https-server"]
+}
+
+# Create a static external IP address
+resource "google_compute_address" "static_ip" {
+  name   = "streetrankings-static-ip"
+  region = "australia-southeast1"
+}
+
 resource "google_compute_instance" "vm_instance" {
   name         = "streetrankings-server"
   machine_type = "e2-medium"
@@ -84,8 +104,9 @@ resource "google_compute_instance" "vm_instance" {
   network_interface {
     network = "default"
 
-    # Add external IP
+    # Use the reserved static IP
     access_config {
+      nat_ip = google_compute_address.static_ip.address
     }
   }
 
@@ -178,6 +199,37 @@ resource "google_compute_instance" "vm_instance" {
     EOL
 
     # Restart Nginx to apply the new configuration
+    systemctl restart nginx
+
+    # Install certbot for Let's Encrypt
+    apt-get install -y certbot python3-certbot-nginx
+
+    # Create a script to obtain certificates that will run after DNS propagation
+    cat > /root/setup-ssl.sh <<'SSLSCRIPT'
+    #!/bin/bash
+    
+    # Check if DNS is properly configured
+    DOMAIN="streetrankings.com"
+    SERVER_IP=$(curl -s ifconfig.me)
+    DOMAIN_IP=$(dig +short $DOMAIN)
+    
+    # Only proceed if DNS is pointing to this server
+    if [ "$SERVER_IP" = "$DOMAIN_IP" ]; then
+      certbot --nginx --non-interactive --agree-tos --email your-email@example.com -d streetrankings.com -d www.streetrankings.com
+      echo "SSL certificates installed successfully!"
+    else
+      echo "DNS not yet propagated. Will try again later."
+      # Schedule another attempt in 30 minutes
+      (crontab -l 2>/dev/null; echo "*/30 * * * * /bin/bash /root/setup-ssl.sh") | crontab -
+    fi
+    SSLSCRIPT
+    
+    chmod +x /root/setup-ssl.sh
+    
+    # Add to crontab to run every 30 minutes until successful
+    (crontab -l 2>/dev/null; echo "*/30 * * * * /bin/bash /root/setup-ssl.sh") | crontab -
+    
+    # Start Nginx with HTTP first
     systemctl restart nginx
   EOF
 }
