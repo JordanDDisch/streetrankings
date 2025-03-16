@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   try {
     // Extract bucket name and file path from the GCS URL
     // Example URL format: https://storage.googleapis.com/bucket-name/path/to/file.zip
-    const bucketName = process.env.GCS_BUCKET_NAME || '';
+    const bucketName = process.env.GCS_BUCKET_NAME || 'street-rankings';
       
     // Initialize Google Cloud Storage with credentials
     const storage = new Storage();

@@ -31,7 +31,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ProcessImages
 
   try {
     const storage = new Storage();
-    const bucketName = process.env.GCS_BUCKET_NAME || '';
+    const bucketName = process.env.GCS_BUCKET_NAME || 'street-rankings';
     const zip = new JSZip();
 
     // Process all files in parallel
