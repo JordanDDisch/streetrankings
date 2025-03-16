@@ -1,6 +1,5 @@
 "use client";
 import { useState } from "react";
-import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { css } from "styled-system/css";
 import { Portal } from '@ark-ui/react/portal'
@@ -20,6 +19,8 @@ const Listing = (): JSX.Element => {
   const [template, setTemplate] = useState<string>(Template.STORY);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errors, setErrors] = useState<string[]>([]);
+  const [zipFile, setZipFile] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState<boolean>(false);
 
   const templateOptions = [{
     label: "Story",
@@ -28,23 +29,6 @@ const Listing = (): JSX.Element => {
     label: "Post",
     value: Template.POST
   }]
-
-  const handleDownloadZip = async () => {
-    if (images.length > 1) {
-      const zip = new JSZip();
-      
-      for (let i = 0; i < images.length; i++) {
-        const response = await fetch(images[i]);
-        const blob = await response.blob();
-        zip.file(`image_${i + 1}.png`, blob);
-      }
-      
-      const content = await zip.generateAsync({ type: 'blob' });
-      saveAs(content, 'processed_images.zip');
-    } else if (images.length === 1) {
-      saveAs(images[0], 'processed_image.png');
-    }
-  };
 
   // Handle form submission to process the image
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -70,6 +54,7 @@ const Listing = (): JSX.Element => {
 
       if (response.ok) {
         setImages(data.images);
+        setZipFile(data.zipFile);
         if (data.errors && data.errors.length > 0) {
           setErrors(data.errors);
           console.warn("Some images had processing errors:", data.errors);
@@ -80,6 +65,28 @@ const Listing = (): JSX.Element => {
       }
     } catch (error: any) {
       console.error("Error processing images:", error);
+    }
+  };
+
+  // Add a function to handle secure downloads
+  const handleDownload = async () => {
+    if (!zipFile) return;
+    
+    setIsDownloading(true);
+    try {
+      const response = await fetch(`/api/download-file?file=${encodeURIComponent(zipFile)}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to download file');
+      }
+      
+      const blob = await response.blob();
+      const fileName = zipFile.split('/').pop() || 'download';
+      saveAs(blob, fileName);
+    } catch (error) {
+      console.error("Error downloading file:", error);
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -171,9 +178,15 @@ const Listing = (): JSX.Element => {
       >
         <Heading as="h2" size="2xl">Processed Images</Heading>
         <Button width="fit-content" onClick={() => setImages([])}>New Resize</Button>
-        <Button width="fit-content" onClick={handleDownloadZip}>
-          Download {images.length > 1 ? 'ZIP' : 'Image'}
-        </Button>
+        {zipFile && (
+          <Button 
+            width="fit-content" 
+            onClick={handleDownload} 
+            disabled={isDownloading}
+          >
+            {isDownloading ? <Spinner /> : `Download ${images.length > 1 ? 'ZIP' : 'Image'}`}
+          </Button>
+        )}
         <div className={css({
             display: "flex",
             flexDirection: "row",

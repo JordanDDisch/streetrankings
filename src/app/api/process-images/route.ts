@@ -3,10 +3,9 @@ import sharp from 'sharp';
 import { fileTypeFromBuffer } from 'file-type';
 import { Template } from "@/types/templates";
 import sizeOf from 'image-size';
-import path from 'path';
-import fs from 'fs/promises';
 import { Storage } from '@google-cloud/storage';
 import { ProcessImagesResponse } from '@/types/api';
+import JSZip from 'jszip';
 
 const getTemplateDimensions = (template: Template): { width: number, height: number } => {
   switch(template) {
@@ -27,12 +26,13 @@ export async function POST(req: NextRequest): Promise<NextResponse<ProcessImages
   const { width: templateWidth, height: templateHeight } = getTemplateDimensions(template);
 
   if (files.length === 0) {
-    return NextResponse.json({ images: [], errors: ['No files uploaded'] }, { status: 400 });
+    return NextResponse.json({ images: [], errors: ['No files uploaded'], zipFile: null }, { status: 400 });
   }
 
   try {
     const storage = new Storage();
-    const bucketName = 'street-rankings'; // Replace with your actual bucket name
+    const bucketName = process.env.GCS_BUCKET_NAME || '';
+    const zip = new JSZip();
 
     // Process all files in parallel
     const processPromises = files.map(async (file) => {
@@ -69,6 +69,9 @@ export async function POST(req: NextRequest): Promise<NextResponse<ProcessImages
       // Save to assets folder
       const fileName = `${Date.now()}-${file.name.replace(/\.[^/.]+$/, '')}.jpg`;
 
+      // Add the file to the zip
+      zip.file(fileName, resizedImageBuffer);
+
       // Upload to Google Cloud Storage
       await storage.bucket(bucketName).file(fileName).save(resizedImageBuffer, {
         contentType: 'image/jpeg',
@@ -89,6 +92,16 @@ export async function POST(req: NextRequest): Promise<NextResponse<ProcessImages
 
     // Wait for all processing to complete
     const results = await Promise.allSettled(processPromises);
+    const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' });
+    const zipFileName = `zip-${Date.now()}.zip`;
+
+    // Save the zip file to the bucket
+    await storage.bucket(bucketName).file(zipFileName).save(zipBuffer, {
+      contentType: 'application/zip',
+      metadata: {
+        cacheControl: 'public, max-age=31536000',
+      }
+    });
     
     // Handle results and errors
     const processedImages: string[] = [];
@@ -104,15 +117,16 @@ export async function POST(req: NextRequest): Promise<NextResponse<ProcessImages
     });
 
     if (errors.length > 0 && processedImages.length === 0) {
-      return NextResponse.json({ images: [], errors: ['Failed to process any images'] }, { status: 500 });
+      return NextResponse.json({ images: [], errors: ['Failed to process any images'], zipFile: null }, { status: 500 });
     }
 
     return NextResponse.json({ 
       images: processedImages,
-      errors: errors.length > 0 ? errors : []
+      errors: errors.length > 0 ? errors : [],
+      zipFile: zipFileName
     });
   } catch (error) {
     console.error('Error processing images:', error);
-    return NextResponse.json({ images: [], errors: ['Error processing images'] }, { status: 500 });
+    return NextResponse.json({ images: [], errors: ['Error processing images'], zipFile: null }, { status: 500 });
   }
 }
