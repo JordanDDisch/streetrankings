@@ -163,7 +163,7 @@ resource "google_compute_instance" "vm_instance" {
     # Configure Docker authentication for Artifact Registry
     gcloud auth configure-docker $REGION-docker.pkg.dev --quiet
 
-    # Configure Nginx as reverse proxy
+    # Configure Nginx as reverse proxy with correct server_name
     cat > /etc/nginx/sites-available/default <<'EOL'
     limit_req_zone $binary_remote_addr zone=mylimit:10m rate=10r/s;
 
@@ -172,7 +172,7 @@ resource "google_compute_instance" "vm_instance" {
 
     server {
         listen 80;
-        server_name _;
+        server_name streetrankings.com www.streetrankings.com;
 
         # Enable rate limiting
         limit_req zone=mylimit burst=20 nodelay;
