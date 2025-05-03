@@ -48,8 +48,9 @@ jobs:
           # The VM is already using the default compute service account
           # No need to switch users for pulling, just use sudo for Docker commands
           sudo docker pull ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/app:${{ github.sha }} && \
-          sudo docker stop streetrankings || true && \
-          sudo docker rm streetrankings || true && \
+          # Only try to stop and remove if container exists
+          sudo docker container inspect streetrankings >/dev/null 2>&1 && sudo docker stop streetrankings || true && \
+          sudo docker container inspect streetrankings >/dev/null 2>&1 && sudo docker rm streetrankings || true && \
           sudo docker run -d \
             --name streetrankings \
             --restart unless-stopped \
