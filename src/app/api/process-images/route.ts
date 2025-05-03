@@ -23,7 +23,10 @@ export async function POST(req: NextRequest): Promise<NextResponse<ProcessImages
   const files: File[] = data.getAll('files') as unknown as File[];
   const template: Template = data.get('template') as unknown as Template;
 
-  const { width: templateWidth, height: templateHeight } = getTemplateDimensions(template);
+  const { 
+    width: templateWidth, 
+    height: templateHeight 
+  } = getTemplateDimensions(template);
 
   if (files.length === 0) {
     return NextResponse.json({ images: [], errors: ['No files uploaded'], zipFile: null }, { status: 400 });
