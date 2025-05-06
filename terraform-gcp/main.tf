@@ -98,6 +98,8 @@ resource "google_compute_instance" "vm_instance" {
   boot_disk {
     initialize_params {
       image = "ubuntu-2204-lts"
+      size  = 20  # Size in GB
+      type  = "pd-balanced"  # Performance balanced persistent disk
     }
   }
 
