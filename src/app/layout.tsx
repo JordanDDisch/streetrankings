@@ -23,7 +23,8 @@ export default function RootLayout({
         <main>
           <div className={css({
             maxWidth: "960px",
-            m: 10
+            m: 10,
+            mx: "auto",
           })}>
             {children}
           </div>
