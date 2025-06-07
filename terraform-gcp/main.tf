@@ -262,3 +262,291 @@ resource "google_storage_bucket" "street_rankings_bucket" {
     prevent_destroy = true
   }
 }
+
+# Create Cloud SQL Database Instance
+resource "google_sql_database_instance" "street_rankings_db" {
+  name             = "street-rankings"
+  database_version = "POSTGRES_15"
+  region          = "australia-southeast1"
+  
+  settings {
+    tier = "db-f1-micro"  # Smallest instance for development
+    
+    # Enable backups
+    backup_configuration {
+      enabled    = true
+      start_time = "03:00"  # 3 AM backup time
+      backup_retention_settings {
+        retained_backups = 7
+      }
+    }
+    
+    # IP configuration
+    ip_configuration {
+      ipv4_enabled = false  # Disable public IP for security
+      private_network = data.google_compute_network.default.id
+    }
+  }
+  
+  # Protect against accidental deletion
+  lifecycle {
+    prevent_destroy = true
+  }
+  
+  depends_on = [google_service_networking_connection.private_vpc_connection]
+}
+
+# Create database
+resource "google_sql_database" "street_rankings_database" {
+  name     = "streetrankings"
+  instance = google_sql_database_instance.street_rankings_db.name
+}
+
+# Create database user
+resource "google_sql_user" "street_rankings_user" {
+  name     = "streetrankings"
+  instance = google_sql_database_instance.street_rankings_db.name
+  password = var.db_password  # You'll need to define this variable
+}
+
+# Get default network
+data "google_compute_network" "default" {
+  name = "default"
+}
+
+# Reserve IP range for private services
+resource "google_compute_global_address" "private_ip_address" {
+  name          = "private-ip-address"
+  purpose       = "VPC_PEERING"
+  address_type  = "INTERNAL"
+  prefix_length = 16
+  network       = data.google_compute_network.default.id
+}
+
+# Create private connection
+resource "google_service_networking_connection" "private_vpc_connection" {
+  network                 = data.google_compute_network.default.id
+  service                 = "servicenetworking.googleapis.com"
+  reserved_peering_ranges = [google_compute_global_address.private_ip_address.name]
+}
+
+# Create firewall rule for OpenVPN
+resource "google_compute_firewall" "allow_openvpn" {
+  name    = "allow-openvpn"
+  network = "default"
+
+  allow {
+    protocol = "udp"
+    ports    = ["1194"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["openvpn-server"]
+}
+
+# Create OpenVPN server instance
+resource "google_compute_instance" "openvpn_server" {
+  name         = "openvpn-server"
+  machine_type = "e2-micro"
+  zone         = "australia-southeast1-b"
+
+  tags = ["openvpn-server"]
+
+  # Use the default compute service account
+  service_account {
+    scopes = ["cloud-platform"]
+  }
+
+  boot_disk {
+    initialize_params {
+      image = "ubuntu-2204-lts"
+      size  = 10  # Size in GB
+      type  = "pd-standard"
+    }
+  }
+
+  network_interface {
+    network = "default"
+    # This will get an ephemeral public IP
+    access_config {}
+  }
+
+  metadata_startup_script = <<-EOF
+    #!/bin/bash
+    
+    # Update system
+    apt-get update && apt-get upgrade -y
+    
+    # Install OpenVPN and Easy-RSA
+    apt-get install -y openvpn easy-rsa
+    
+    # Create directory structure
+    mkdir -p /etc/openvpn/easy-rsa
+    cp -r /usr/share/easy-rsa/* /etc/openvpn/easy-rsa/
+    
+    # Initialize PKI
+    cd /etc/openvpn/easy-rsa
+    ./easyrsa init-pki
+    
+    # Build CA (non-interactive)
+    echo 'set_var EASYRSA_BATCH "yes"' >> vars
+    echo 'set_var EASYRSA_REQ_CN "StreetRankings-CA"' >> vars
+    ./easyrsa build-ca nopass
+    
+    # Generate server certificate
+    ./easyrsa gen-req server nopass
+    ./easyrsa sign-req server server
+    
+    # Generate Diffie-Hellman parameters
+    ./easyrsa gen-dh
+    
+    # Generate ta.key for additional security
+    openvpn --genkey --secret ta.key
+    
+    # Copy certificates to OpenVPN directory
+    cp pki/ca.crt /etc/openvpn/
+    cp pki/issued/server.crt /etc/openvpn/
+    cp pki/private/server.key /etc/openvpn/
+    cp pki/dh.pem /etc/openvpn/
+    cp ta.key /etc/openvpn/
+    
+    # Create server configuration
+    cat > /etc/openvpn/server.conf <<'OVPN'
+    port 1194
+    proto udp
+    dev tun
+    
+    ca ca.crt
+    cert server.crt
+    key server.key
+    dh dh.pem
+    
+    server 10.8.0.0 255.255.255.0
+    
+    # Push routes to clients for GCP internal network
+    push "route 10.128.0.0 255.255.240.0"
+    push "route 10.132.0.0 255.255.240.0"
+    push "route 172.16.0.0 255.255.0.0"
+    
+    # Push DNS servers
+    push "dhcp-option DNS 8.8.8.8"
+    push "dhcp-option DNS 8.8.4.4"
+    
+    ifconfig-pool-persist ipp.txt
+    
+    keepalive 10 120
+    
+    tls-auth ta.key 0
+    cipher AES-256-CBC
+    
+    user nobody
+    group nogroup
+    
+    persist-key
+    persist-tun
+    
+    status openvpn-status.log
+    log-append /var/log/openvpn.log
+    verb 3
+    
+    # Explicit exit notify
+    explicit-exit-notify 1
+    OVPN
+    
+    # Enable IP forwarding
+    echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
+    sysctl -p
+    
+    # Configure iptables for NAT
+    iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o ens4 -j MASQUERADE
+    iptables -A INPUT -i tun+ -j ACCEPT
+    iptables -A FORWARD -i tun+ -j ACCEPT
+    iptables -A FORWARD -i tun+ -o ens4 -m state --state RELATED,ESTABLISHED -j ACCEPT
+    iptables -A FORWARD -i ens4 -o tun+ -m state --state RELATED,ESTABLISHED -j ACCEPT
+    
+    # Save iptables rules
+    apt-get install -y iptables-persistent
+    iptables-save > /etc/iptables/rules.v4
+    
+    # Start and enable OpenVPN
+    systemctl start openvpn@server
+    systemctl enable openvpn@server
+    
+    # Create client certificate generation script
+    cat > /root/generate-client.sh <<'CLIENTSCRIPT'
+    #!/bin/bash
+    CLIENT_NAME=$1
+    if [ -z "$CLIENT_NAME" ]; then
+        echo "Usage: $0 <client_name>"
+        exit 1
+    fi
+    
+    cd /etc/openvpn/easy-rsa
+    ./easyrsa gen-req $CLIENT_NAME nopass
+    ./easyrsa sign-req client $CLIENT_NAME
+    
+    # Create client config
+    cat > /root/$CLIENT_NAME.ovpn <<CLIENTCONF
+    client
+    dev tun
+    proto udp
+    remote $(curl -s ifconfig.me) 1194
+    resolv-retry infinite
+    nobind
+    persist-key
+    persist-tun
+    
+    <ca>
+    $(cat /etc/openvpn/ca.crt)
+    </ca>
+    
+    <cert>
+    $(cat /etc/openvpn/easy-rsa/pki/issued/$CLIENT_NAME.crt)
+    </cert>
+    
+    <key>
+    $(cat /etc/openvpn/easy-rsa/pki/private/$CLIENT_NAME.key)
+    </key>
+    
+    <tls-auth>
+    $(cat /etc/openvpn/ta.key)
+    </tls-auth>
+    key-direction 1
+    
+    cipher AES-256-CBC
+    verb 3
+    CLIENTCONF
+    
+    echo "Client configuration created at /root/$CLIENT_NAME.ovpn"
+    CLIENTSCRIPT
+    
+    chmod +x /root/generate-client.sh
+    
+    # Generate a default client certificate
+    /root/generate-client.sh streetrankings-admin
+    
+    echo "OpenVPN setup complete!"
+    echo "To create additional client certificates, run: /root/generate-client.sh <client_name>"
+    echo "Client config files will be created in /root/"
+  EOF
+}
+
+# Output the database connection details
+output "database_connection_name" {
+  value = google_sql_database_instance.street_rankings_db.connection_name
+}
+
+output "database_private_ip" {
+  value = google_sql_database_instance.street_rankings_db.private_ip_address
+}
+
+output "openvpn_server_ip" {
+  value = google_compute_instance.openvpn_server.network_interface[0].access_config[0].nat_ip
+}
+
+# Variable for database password
+variable "db_password" {
+  description = "Password for the database user"
+  type        = string
+  sensitive   = true
+}
