@@ -1,10 +1,6 @@
 import Listing from "@/components/Listing";
 import { Heading } from "@/components/ui/heading";
 import { css } from "@/styled-system/css"
-import Image from "next/image";
-import ImageGallery from "@/components/ImageGallery";
-import { getUserInfo, getUserAssets } from './actions/sessions';
-import { getInstagramUser } from './actions/instagram-session';
 import './globals.css';
 
 export default async function Page() {
