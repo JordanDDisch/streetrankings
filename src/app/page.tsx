@@ -8,10 +8,6 @@ import { getInstagramUser } from './actions/instagram-session';
 import './globals.css';
 
 export default async function Page() {
-  const userInfo = await getUserInfo()
-  const userAssets = await getUserAssets()
-  const instagramUser = await getInstagramUser()
-
   return (
     <div className={css({
       display: "flex",
@@ -19,9 +15,6 @@ export default async function Page() {
       gap: 4,
       mb: 4
     })}>
-      {userInfo && <div>Welcome {userInfo.full_name}</div>}
-      {userAssets && <ImageGallery images={[userAssets]} />}
-      {instagramUser && <div>Welcome {instagramUser.username}</div>}
       <Heading as="h1" size="4xl">
         Street Rankings
       </Heading>
