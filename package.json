@@ -8,11 +8,19 @@
     "dev-https": "next dev --experimental-https",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:migrate": "knex migrate:latest",
+    "db:rollback": "knex migrate:rollback",
+    "db:migrate:status": "knex migrate:status",
+    "db:migrate:make": "knex migrate:make"
   },
   "dependencies": {
     "@ark-ui/react": "^3.13.0",
+    "@azure/app-configuration": "^1.9.0",
+    "@azure/identity": "^4.10.0",
+    "@azure/keyvault-secrets": "^4.9.0",
     "@google-cloud/storage": "^7.15.2",
+    "@types/pg": "^8.15.4",
     "@vercel/analytics": "^1.3.1",
     "@vercel/speed-insights": "^1.0.12",
     "cookie": "^1.0.1",
@@ -21,10 +29,13 @@
     "formidable": "^3.5.1",
     "image-size": "^1.1.1",
     "jszip": "^3.10.1",
+    "knex": "^3.1.0",
     "konva": "^9.3.14",
     "lucide-react": "^0.452.0",
     "next": "14.2.6",
     "node-fetch": "^3.3.2",
+    "pg": "^8.16.0",
+    "pg-query-stream": "^4.10.0",
     "react": "^18",
     "react-dom": "^18",
     "react-konva": "^18.2.10",
@@ -39,8 +50,10 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "dotenv": "^16.5.0",
     "eslint": "^8",
     "eslint-config-next": "14.2.6",
+    "pg-connection-string": "^2.9.0",
     "typescript": "^5"
   }
 }

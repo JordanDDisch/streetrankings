@@ -7,7 +7,8 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '100mb',
     },
-  },
+    serverComponentsExternalPackages: ['knex']
+  }
 };
 
 export default nextConfig;

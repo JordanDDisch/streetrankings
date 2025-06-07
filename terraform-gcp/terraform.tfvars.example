@@ -1,0 +1,7 @@
+# Database configuration
+db_password = "your-secure-database-password-here"
+
+# Instructions:
+# 1. Copy this file to terraform.tfvars
+# 2. Replace the example values with your actual values
+# 3. Make sure terraform.tfvars is in your .gitignore to keep secrets safe 
