@@ -25,7 +25,7 @@ export default async function Dashboard() {
       
       <Card.Root>
         <Card.Header>
-          <Card.Title>Welcome back!</Card.Title>
+          <Card.Title>Welcome back! </Card.Title>
         </Card.Header>
         <Card.Body>
           <div className={css({
