@@ -77,6 +77,32 @@ resource "google_compute_firewall" "allow_https" {
   target_tags   = ["https-server"]
 }
 
+# Create firewall rule for Cloud SQL (PostgreSQL)
+resource "google_compute_firewall" "allow_cloudsql" {
+  name    = "allow-cloudsql"
+  network = "default"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["5432"]
+  }
+
+  # Allow from all internal IPs in the VPC and from private services range
+  source_ranges = ["10.128.0.0/9", "10.43.0.0/16"]
+}
+
+# Create firewall rule for ICMP (ping) for troubleshooting
+resource "google_compute_firewall" "allow_icmp" {
+  name    = "allow-icmp"
+  network = "default"
+
+  allow {
+    protocol = "icmp"
+  }
+
+  source_ranges = ["10.128.0.0/9", "10.43.0.0/16"]
+}
+
 # Create a static external IP address
 resource "google_compute_address" "static_ip" {
   name   = "streetrankings-static-ip"
@@ -88,7 +114,7 @@ resource "google_compute_instance" "vm_instance" {
   machine_type = "e2-medium"
   zone         = "australia-southeast1-b"
 
-  tags = ["http-server", "https-server"]  # Add the http-server tag
+  tags = ["http-server", "https-server", "cloudsql-client"]  # Add the cloudsql-client tag
 
   # Use the default compute service account
   service_account {
