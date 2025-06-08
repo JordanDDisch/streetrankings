@@ -3,9 +3,7 @@ import { parse } from 'pg-connection-string';
 
 // Parse the connection string and add SSL settings
 function getConnectionConfig(connectionString: string) {
-  console.log('Raw connection string:', connectionString);
   const config = parse(connectionString);
-  console.log('Parsed config:', config);
   
   // Convert null values to undefined and create proper config
   const connectionConfig: any = {
@@ -23,7 +21,6 @@ function getConnectionConfig(connectionString: string) {
     };
   }
   
-  console.log('Final connection config:', connectionConfig);
   return connectionConfig;
 }
 
