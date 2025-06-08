@@ -58,6 +58,7 @@ jobs:
             -e PORT=80 \
             -e GOOGLE_CLOUD_PROJECT=${{ env.PROJECT_ID }} \
             -e STORAGE_BUCKET=${{ env.STORAGE_BUCKET }} \
+            -e PG_CONNECTION_STRING="${{ vars.PG_CONNECTION_STRING }}" \
             ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/app:${{ github.sha }}
         '
 
