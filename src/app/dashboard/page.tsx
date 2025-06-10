@@ -3,6 +3,7 @@ import { validateSession } from '@/lib/auth'
 import { Heading } from '@/components/ui/heading'
 import { Card } from '@/components/ui/card'
 import { css } from '@/styled-system/css'
+import Link from 'next/link'
 
 export default async function Dashboard() {
   // Validate session - redirect to login if invalid
@@ -33,6 +34,7 @@ export default async function Dashboard() {
             flexDirection: 'column',
             gap: 2
           })}>
+            <Link href="/dashboard/pages">Pages</Link>
             <p><strong>Email:</strong> {session.user.email}</p>
             <p><strong>Username:</strong> {session.user.username}</p>
             {session.user.first_name && (

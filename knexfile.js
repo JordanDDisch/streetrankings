@@ -23,10 +23,16 @@ module.exports = {
     connection: getConnectionConfig(process.env.PG_CONNECTION_STRING),
     searchPath: ['knex', 'public'],
     pool: {
-      min: 2,
-      max: 10
+      min: 0,
+      max: 5,
+      createTimeoutMillis: 30000,
+      acquireTimeoutMillis: 30000,
+      idleTimeoutMillis: 30000,
+      reapIntervalMillis: 1000,
+      createRetryIntervalMillis: 100,
+      propagateCreateError: false
     },
-    acquireConnectionTimeout: 60000,
+    acquireConnectionTimeout: 30000,
     migrations: {
       directory: './src/migrations',
       tableName: 'knex_migrations'
@@ -38,10 +44,16 @@ module.exports = {
     connection: getConnectionConfig(process.env.PG_CONNECTION_STRING),
     searchPath: ['knex', 'public'],
     pool: {
-      min: 2,
-      max: 10
+      min: 0,
+      max: 5,
+      createTimeoutMillis: 30000,
+      acquireTimeoutMillis: 30000,
+      idleTimeoutMillis: 30000,
+      reapIntervalMillis: 1000,
+      createRetryIntervalMillis: 100,
+      propagateCreateError: false
     },
-    acquireConnectionTimeout: 60000,
+    acquireConnectionTimeout: 30000,
     migrations: {
       directory: './src/migrations',
       tableName: 'knex_migrations'
