@@ -38,6 +38,14 @@ export interface ImageUploadConfig {
 
 // Default configurations for different use cases
 export const IMAGE_UPLOAD_PRESETS = {
+  TEMPLATE_PROCESSING: {
+    resize: {
+      width: 1200,
+      height: 1200,
+      fit: 'contain' as const,
+      background: { r: 255, g: 255, b: 255, alpha: 1 }
+    },
+  },
   PAGE_GALLERY: {
     resize: {
       width: 1200,

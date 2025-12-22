@@ -15,7 +15,6 @@ import { Template } from '@/types/templates';
 const processImage = async (buffer: Buffer<ArrayBuffer>, config: ImageUploadConfig, template: string): Promise<{ 
     processedBuffer: Buffer, finalWidth: number, finalHeight: number 
 }> => {
-  let processedBuffer: Buffer;
   const originalDimensions = sizeOf(buffer);
 
   if(!originalDimensions.width || !originalDimensions.height) {
@@ -36,6 +35,9 @@ const processImage = async (buffer: Buffer<ArrayBuffer>, config: ImageUploadConf
   if(isImageLandscape && template === Template.GALLERY) {
     config = { ...IMAGE_UPLOAD_PRESETS[Template.LANDSCAPE_THUMBNAIL] }
   }
+
+  // Default to original buffer if no processing is needed
+  let processedBuffer: Buffer = buffer;
 
   if (config.resize || config.format || config.quality) {
     let sharpInstance = sharp(buffer);
@@ -157,15 +159,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ImageUploadRe
           }
         }
 
-        // Process image
-        if(template === Template.GALLERY) {
-          const { processedBuffer, finalWidth, finalHeight } = await processImage(buffer, config, Template.LANDSCAPE_THUMBNAIL);
-          const publicUrl = await uploadImage(storage, bucketName, processedBuffer, finalWidth, finalHeight, fileName, config); 
-        } else {  
-          const { processedBuffer, finalWidth, finalHeight } = await processImage(buffer, config, template);
-        }
-
-        // Generate filename
+        // Generate filename before processing (needed for upload)
         const timestamp = Date.now();
         const baseName = config.preserveOriginalName 
           ? file.name.replace(/\.[^/.]+$/, '') 
@@ -173,6 +167,27 @@ export async function POST(req: NextRequest): Promise<NextResponse<ImageUploadRe
         const prefix = config.filePrefix ? `${config.filePrefix}-` : '';
         const extension = config.format || 'jpg';
         const fileName = `${prefix}${baseName}.${extension}`;
+
+        // Process image
+        let processedBuffer: Buffer;
+        let finalWidth: number;
+        let finalHeight: number;
+        let publicUrl: string;
+
+        if(template === Template.GALLERY) {
+          const result = await processImage(buffer, config, Template.GALLERY);
+          processedBuffer = result.processedBuffer;
+          finalWidth = result.finalWidth;
+          finalHeight = result.finalHeight;
+        } else {  
+          const result = await processImage(buffer, config, template);
+          processedBuffer = result.processedBuffer;
+          finalWidth = result.finalWidth;
+          finalHeight = result.finalHeight;
+        }
+
+        // Upload image
+        publicUrl = await uploadImage(storage, bucketName, processedBuffer, fileName, config);
 
         // Add to zip if enabled
         if (zip) {
