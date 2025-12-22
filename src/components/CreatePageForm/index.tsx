@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Formik, Form, FormikHelpers } from 'formik'
 import * as Yup from 'yup'
-import { createPage } from "@/app/actions/pages"
+import { createPage, updatePage } from "@/app/actions/pages"
 import { useRouter } from "next/navigation"
 import { Field } from "@/components/ui/field"
 import { FileUpload } from "@/components/ui/file-upload"
@@ -31,6 +31,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { css } from "@/styled-system/css"
 import { CreatePageFormValues, CreatePageInput } from '@/types/pages'
 import { uploadPageGalleryImages } from '@/lib/imageUpload'
+import { createImagesForPage } from '@/app/actions/images'
 
 // Validation schema using Yup
 const validationSchema = Yup.object({
@@ -93,9 +94,20 @@ const CreatePageForm = () => {
     { setSubmitting, setFieldError }: FormikHelpers<CreatePageFormValues>
   ) => {
     try {
-      let galleryUrls: string[] = []
+      // 1. Create page first (without gallery)
+      const pageData: CreatePageInput = {
+        page_name: values.page_name,
+        page_url: values.page_url,
+        page_description: values.page_description,
+        is_active: values.is_active,
+        gallery: [] // Start with empty gallery
+      }
 
-      // Upload images if any files are selected
+      console.log('Creating page...', pageData)
+      const createdPage = await createPage(pageData)
+      console.log('Page created with ID:', createdPage.id)
+
+      // 2. Upload images and create image records (if any files are selected)
       if (files.length > 0) {
         setIsUploading(true)
         
@@ -104,15 +116,29 @@ const CreatePageForm = () => {
           
           if (uploadResponse.totalErrors > 0) {
             console.warn('Some images failed to upload:', uploadResponse.results
-              .filter(r => !r.success)
-              .map(r => r.error)
+              .filter((r: any) => !r.success)
+              .map((r: any) => r.error)
             )
           }
+
+          // Only proceed if at least some images uploaded successfully
+          const successfulUploads = uploadResponse.results.filter((r: any) => r.success && r.url)
+          if (successfulUploads.length === 0) {
+            setFieldError('files', 'No images uploaded successfully. Please try again.')
+            return
+          }
+
+          // Create image records in database with the actual page ID
+          const imageRecords = await createImagesForPage(uploadResponse, createdPage.id)
+          const galleryImageIds = imageRecords.map((img: any) => img.id)
           
-          // Get URLs of successfully uploaded images
-          galleryUrls = uploadResponse.results
-            .filter(r => r.success && r.url)
-            .map(r => r.url!)
+          console.log('Created image records with IDs:', galleryImageIds)
+
+          // Update the page with image IDs in gallery field
+          if (galleryImageIds.length > 0) {
+            await updatePage(createdPage.id, { gallery: galleryImageIds })
+            console.log('Updated page with gallery image IDs:', galleryImageIds)
+          }
             
         } catch (uploadError) {
           console.error('Image upload failed:', uploadError)
@@ -123,16 +149,6 @@ const CreatePageForm = () => {
         }
       }
 
-      // Create the page with uploaded image URLs
-      const pageData: CreatePageInput = {
-        page_name: values.page_name,
-        page_url: values.page_url,
-        page_description: values.page_description,
-        is_active: values.is_active,
-        gallery: galleryUrls
-      }
-
-      await createPage(pageData)
       router.push('/dashboard/pages')
       
     } catch (error) {

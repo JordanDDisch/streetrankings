@@ -8,8 +8,97 @@ import {
   ImageUploadConfig, 
   ImageUploadResponse, 
   ImageUploadResult,
-  IMAGE_UPLOAD_PRESETS 
+  IMAGE_UPLOAD_PRESETS,
 } from '@/types/images';
+import { Template } from '@/types/templates';
+
+const processImage = async (buffer: Buffer<ArrayBuffer>, config: ImageUploadConfig, template: string): Promise<{ 
+    processedBuffer: Buffer, finalWidth: number, finalHeight: number 
+}> => {
+  let processedBuffer: Buffer;
+  const originalDimensions = sizeOf(buffer);
+
+  if(!originalDimensions.width || !originalDimensions.height) {
+    throw new Error('Could not determine image dimensions');
+  }
+
+  let finalWidth = originalDimensions.width;
+  let finalHeight = originalDimensions.height;
+
+  let isImagePortrait = finalWidth < finalHeight;
+  let isImageLandscape = finalWidth > finalHeight;
+
+  // Set the config to the appropriate thumbnail template if the image is portrait or landscape
+  if(isImagePortrait && template === Template.GALLERY) {
+    config = { ...IMAGE_UPLOAD_PRESETS[Template.PORTAIT_THUMBNAIL] }
+  }
+
+  if(isImageLandscape && template === Template.GALLERY) {
+    config = { ...IMAGE_UPLOAD_PRESETS[Template.LANDSCAPE_THUMBNAIL] }
+  }
+
+  if (config.resize || config.format || config.quality) {
+    let sharpInstance = sharp(buffer);
+
+    // Apply resize if configured
+    if (config.resize) {
+      sharpInstance = sharpInstance.resize({
+        width: config.resize.width,
+        height: config.resize.height,
+        fit: config.resize.fit || 'contain',
+        background: config.resize.background || { r: 255, g: 255, b: 255, alpha: 1 },
+      });
+
+      finalWidth = config.resize.width || originalDimensions.width;
+      finalHeight = config.resize.height || originalDimensions.height;
+    }
+
+    // Apply format and quality
+    const format = config.format || 'jpeg';
+    const quality = config.quality || 85;
+
+    switch (format) {
+      case 'jpeg':
+        sharpInstance = sharpInstance.jpeg({ quality });
+        break;
+      case 'png':
+        sharpInstance = sharpInstance.png({ quality });
+        break;
+      case 'webp':
+        sharpInstance = sharpInstance.webp({ quality });
+        break;
+    }
+
+    processedBuffer = await sharpInstance.toBuffer();
+  }
+
+  return {
+    processedBuffer,
+    finalWidth,
+    finalHeight
+  }
+}
+
+const uploadImage = async (storage: Storage, bucketName: string, processedBuffer: Buffer, fileName: string, config: ImageUploadConfig): Promise<string> => {
+  // Upload to Google Cloud Storage
+  const fileRef = storage.bucket(bucketName).file(fileName);
+  await fileRef.save(processedBuffer, {
+    contentType: `image/${config.format || 'jpeg'}`,
+    metadata: {
+      cacheControl: config.cacheControl || 'public, max-age=31536000',
+    }
+  });
+
+  // Make public if configured
+  if (config.makePublic !== false) {
+    await fileRef.makePublic();
+  }
+
+  // Get public URL
+  const publicUrl = `https://storage.googleapis.com/${bucketName}/${fileName}`;
+
+  return publicUrl;
+}
 
 /**
  * Generic image upload API route
@@ -19,8 +108,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ImageUploadRe
   try {
     const data = await req.formData();
     const files: File[] = data.getAll('files') as File[];
-    const presetName = data.get('preset') as keyof typeof IMAGE_UPLOAD_PRESETS | null;
-    const customConfigStr = data.get('config') as string | null;
+    const template: keyof typeof Template = data.get('template') as unknown as keyof typeof Template;
 
     if (files.length === 0) {
       return NextResponse.json({
@@ -32,33 +120,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ImageUploadRe
 
     // Determine configuration
     let config: ImageUploadConfig;
-    
-    if (presetName && IMAGE_UPLOAD_PRESETS[presetName]) {
-      config = { ...IMAGE_UPLOAD_PRESETS[presetName] };
-      
-      // Merge with custom config if provided
-      if (customConfigStr) {
-        try {
-          const customConfig = JSON.parse(customConfigStr);
-          config = { ...config, ...customConfig };
-        } catch (error) {
-          console.warn('Failed to parse custom config:', error);
-        }
-      }
-    } else if (customConfigStr) {
-      try {
-        config = JSON.parse(customConfigStr);
-      } catch (error) {
-        return NextResponse.json({
-          results: [],
-          totalSuccessful: 0,
-          totalErrors: 1
-        }, { status: 400 });
-      }
-    } else {
-      // Default to PAGE_GALLERY preset
-      config = { ...IMAGE_UPLOAD_PRESETS.PAGE_GALLERY };
-    }
+    config = { ...IMAGE_UPLOAD_PRESETS[template as keyof typeof IMAGE_UPLOAD_PRESETS] };
 
     const storage = new Storage();
     const bucketName = process.env.GCS_BUCKET_NAME || 'street-rankings';
@@ -96,43 +158,11 @@ export async function POST(req: NextRequest): Promise<NextResponse<ImageUploadRe
         }
 
         // Process image
-        let processedBuffer = buffer;
-        let finalWidth = originalDimensions.width;
-        let finalHeight = originalDimensions.height;
-
-        if (config.resize || config.format || config.quality) {
-          let sharpInstance = sharp(buffer);
-
-          // Apply resize if configured
-          if (config.resize) {
-            sharpInstance = sharpInstance.resize({
-              width: config.resize.width,
-              height: config.resize.height,
-              fit: config.resize.fit || 'contain',
-              background: config.resize.background || { r: 255, g: 255, b: 255, alpha: 1 }
-            });
-
-            finalWidth = config.resize.width || originalDimensions.width;
-            finalHeight = config.resize.height || originalDimensions.height;
-          }
-
-          // Apply format and quality
-          const format = config.format || 'jpeg';
-          const quality = config.quality || 85;
-
-          switch (format) {
-            case 'jpeg':
-              sharpInstance = sharpInstance.jpeg({ quality });
-              break;
-            case 'png':
-              sharpInstance = sharpInstance.png({ quality });
-              break;
-            case 'webp':
-              sharpInstance = sharpInstance.webp({ quality });
-              break;
-          }
-
-          processedBuffer = await sharpInstance.toBuffer();
+        if(template === Template.GALLERY) {
+          const { processedBuffer, finalWidth, finalHeight } = await processImage(buffer, config, Template.LANDSCAPE_THUMBNAIL);
+          const publicUrl = await uploadImage(storage, bucketName, processedBuffer, finalWidth, finalHeight, fileName, config); 
+        } else {  
+          const { processedBuffer, finalWidth, finalHeight } = await processImage(buffer, config, template);
         }
 
         // Generate filename
@@ -148,23 +178,6 @@ export async function POST(req: NextRequest): Promise<NextResponse<ImageUploadRe
         if (zip) {
           zip.file(fileName, processedBuffer);
         }
-
-        // Upload to Google Cloud Storage
-        const fileRef = storage.bucket(bucketName).file(fileName);
-        await fileRef.save(processedBuffer, {
-          contentType: `image/${config.format || 'jpeg'}`,
-          metadata: {
-            cacheControl: config.cacheControl || 'public, max-age=31536000',
-          }
-        });
-
-        // Make public if configured
-        if (config.makePublic !== false) {
-          await fileRef.makePublic();
-        }
-
-        // Get public URL
-        const publicUrl = `https://storage.googleapis.com/${bucketName}/${fileName}`;
 
         return {
           success: true,
