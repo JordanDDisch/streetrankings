@@ -21,7 +21,7 @@ export default async function Pages() {
       borderRadius: "md",
       mb: 2
     })}>
-      <Link href={`/dashboard/pages/${page.page_url}`}>
+      <Link href={`/dashboard/pages/${page.id}`}>
         <strong>{page.page_name}</strong>
       </Link>
       <p>{page.page_description}</p>

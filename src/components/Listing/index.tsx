@@ -11,14 +11,13 @@ import { Select } from '@/components/ui/select'
 import { Trash2Icon, ChevronDownIcon } from 'lucide-react'
 import { Heading } from "@/components/ui/heading";
 import { Spinner } from "@/components/ui/spinner";
-import { ProcessImagesResponse } from '@/types/api';
+import { ImageUploadResponse } from '@/types/images';
 
 const Listing = (): JSX.Element => {
   const [files, setFiles] = useState<File[]>([]);
   const [images, setImages] = useState<string[]>([]);
   const [template, setTemplate] = useState<string>(Template.STORY);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [errors, setErrors] = useState<string[]>([]);
   const [zipFile, setZipFile] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
 
@@ -44,22 +43,18 @@ const Listing = (): JSX.Element => {
       }
       formData.set("template", template);
 
-      const response = await fetch("/api/process-images", {
+      const response = await fetch("/api/upload-images", {
         method: "POST",
         body: formData,
       });
 
-      const data: ProcessImagesResponse = await response.json();
+      const data: ImageUploadResponse = await response.json();
       setIsLoading(false);
 
       if (response.ok) {
-        setImages(data.images);
-        setZipFile(data.zipFile);
-        if (data.errors && data.errors.length > 0) {
-          setErrors(data.errors);
-          console.warn("Some images had processing errors:", data.errors);
-        }
-        console.log("Images processed successfully");
+        const images = data.results.map((result) => result.url).filter((url) => url !== undefined);
+        setImages(images);
+        setZipFile(data.zipFileName || null);
       } else {
         console.error("Failed to process images");
       }

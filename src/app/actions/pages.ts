@@ -19,8 +19,8 @@ export async function createPage(pageData: CreatePageInput): Promise<Page> {
   return page
 }
 
-export async function getPage(pageId: string): Promise<Page | null> {
-  const page = await db('pages').where('id', pageId).first()
+export async function getPage(pageUrl: string): Promise<Page | null> {
+  const page = await db('pages').where('page_url', pageUrl).first()
   return page || null
 }
 

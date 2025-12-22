@@ -1,3 +1,12 @@
+export interface Image {
+  id: string;
+  image_url: string;
+  image_description: string;
+  image_alt: string;
+  image_caption: string;
+  page_id: string;
+}
+
 // Image upload configuration options
 export interface ImageUploadConfig {
   // Resize options
@@ -47,10 +56,44 @@ export const IMAGE_UPLOAD_PRESETS = {
     filePrefix: 'gallery'
   },
   
-  TEMPLATE_PROCESSING: {
+  STORY: {
     resize: {
       width: 1080,
       height: 1920,
+      fit: 'contain' as const,
+      background: { r: 0, g: 0, b: 0, alpha: 1 }
+    },
+    quality: 85,
+    format: 'jpeg' as const,
+    maxFileSize: 5 * 1024 * 1024, // 5MB
+    maxDimensions: { width: 4000, height: 4000 },
+    allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif'] as const,
+    generateZip: true,
+    makePublic: true,
+    cacheControl: 'public, max-age=31536000',
+    filePrefix: 'processed'
+  },
+
+  PORTAIT_THUMBNAIL: {
+    resize: {
+      width: 281.25,
+      height: 500,
+    },
+    format: 'webp' as const,
+  },
+
+  LANDSCAPE_THUMBNAIL: {
+    resize: {
+      width: 500,
+      height: 281.25,
+    },
+    format: 'webp' as const,
+  },
+
+  POST: {
+    resize: {
+      width: 1080,
+      height: 1350,
       fit: 'contain' as const,
       background: { r: 0, g: 0, b: 0, alpha: 1 }
     },
