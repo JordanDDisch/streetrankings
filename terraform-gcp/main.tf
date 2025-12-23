@@ -576,3 +576,17 @@ variable "db_password" {
   type        = string
   sensitive   = true
 }
+
+# Variable for GitHub Actions service account
+variable "github_actions_sa_email" {
+  description = "Email of the service account used by GitHub Actions"
+  type        = string
+}
+
+# Grant Cloud SQL Client role to GitHub Actions service account
+# This allows the service account to connect via Cloud SQL Proxy
+resource "google_project_iam_member" "github_actions_cloudsql_client" {
+  project = "tilligery-connect"
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${var.github_actions_sa_email}"
+}

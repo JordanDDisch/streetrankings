@@ -36,9 +36,34 @@ jobs:
       run: |
         gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
 
-    - name: Build Docker image
+    - name: Install Cloud SQL Proxy
       run: |
-        docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/app:${{ github.sha }} .
+        curl -o cloud-sql-proxy https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.14.0/cloud-sql-proxy.linux.amd64
+        chmod +x cloud-sql-proxy
+        sudo mv cloud-sql-proxy /usr/local/bin/
+
+    - name: Start Cloud SQL Proxy
+      run: |
+        cloud-sql-proxy ${{ secrets.DB_CONNECTION_NAME }} --port 5432 &
+        # Wait for proxy to be ready
+        for i in {1..30}; do
+          if pg_isready -h 127.0.0.1 -p 5432 > /dev/null 2>&1; then
+            echo "Cloud SQL Proxy is ready!"
+            break
+          fi
+          echo "Waiting for Cloud SQL Proxy to be ready..."
+          sleep 2
+        done
+
+    - name: Build Docker image
+      env:
+        # Use localhost connection for build-time database access via Cloud SQL Proxy
+        PG_CONNECTION_STRING: postgresql://streetrankings:${{ secrets.DB_PASSWORD }}@127.0.0.1:5432/streetrankings
+      run: |
+        docker build \
+          --network host \
+          --build-arg PG_CONNECTION_STRING="${PG_CONNECTION_STRING}" \
+          -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/app:${{ github.sha }} .
         docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/app:${{ github.sha }}
 
     - name: Deploy to VM instance
