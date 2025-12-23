@@ -23,6 +23,10 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED 1
 ENV NODE_ENV production
 
+# Accept database connection string as build argument for static page generation
+ARG PG_CONNECTION_STRING
+ENV PG_CONNECTION_STRING=${PG_CONNECTION_STRING}
+
 # Build the application
 RUN npm run prepare && npm run build
 
