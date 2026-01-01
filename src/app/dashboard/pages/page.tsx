@@ -24,10 +24,10 @@ export default async function Pages() {
       <Link href={`/dashboard/pages/${page.page_url}`}>
         <strong>{page.page_name}</strong>
       </Link>
-      <p>{page.page_description}</p>
+      <div dangerouslySetInnerHTML={{ __html: page.page_description }} />
       <div className={css({ fontSize: "sm", color: "gray.600" })}>
         <span>URL: /{page.page_url}</span>
-        {page.is_active ? (
+        {page.is_active ? ( 
           <span className={css({ ml: 2, color: "green.600" })}>• Active</span>
         ) : (
           <span className={css({ ml: 2, color: "red.600" })}>• Inactive</span>

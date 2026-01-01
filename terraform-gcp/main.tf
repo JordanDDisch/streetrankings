@@ -309,8 +309,11 @@ resource "google_sql_database_instance" "street_rankings_db" {
     
     # IP configuration
     ip_configuration {
-      ipv4_enabled = false  # Disable public IP for security
+      ipv4_enabled = true  # Enable public IP for Cloud SQL Proxy access from GitHub Actions
       private_network = data.google_compute_network.default.id
+
+      # No authorized networks needed - Cloud SQL Proxy uses IAM authentication
+      # This means only authenticated service accounts can connect
     }
   }
   

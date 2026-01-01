@@ -28,3 +28,12 @@ export async function updateImagesPageId(imageIds: string[], pageId: string) {
     .whereIn('id', imageIds)
     .update({ page_id: pageId })
 }
+
+export async function getImagesForPage(pageId: string) {
+  const images = await db('images').where('page_id', pageId).select('*')
+  return images
+}
+
+export async function deleteImagesForPage(pageId: string, imageIds: string[]) {
+  await db('images').where('page_id', pageId).whereIn('id', imageIds).delete()
+}

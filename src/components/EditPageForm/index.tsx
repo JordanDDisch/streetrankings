@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Formik, Form, FormikHelpers } from 'formik'
 import * as Yup from 'yup'
-import { createPage, updatePage } from "@/app/actions/pages"
+import { updatePage } from "@/app/actions/pages"
 import { useRouter } from "next/navigation"
 import { Field } from "@/components/ui/field"
 import { FileUpload } from "@/components/ui/file-upload"
@@ -12,6 +12,8 @@ import { IconButton } from "@/components/ui/icon-button"
 import { FormLabel } from '@/components/ui/form-label'
 import { RichTextEditor } from '@/components/ui/rich-text-editor'
 import { Grip, Trash2Icon } from "lucide-react"
+import Masonry from 'react-masonry-css'
+import NextImage from 'next/image'
 import {
   DndContext,
   closestCenter,
@@ -29,9 +31,19 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { css } from "@/styled-system/css"
-import { CreatePageFormValues, CreatePageInput } from '@/types/pages'
+import { Page, CreatePageInput } from '@/types/pages'
 import { uploadPageGalleryImages } from '@/lib/imageUpload'
-import { createImagesForPage } from '@/app/actions/images'
+import { createImagesForPage, deleteImagesForPage } from '@/app/actions/images'
+import { Image } from '@/types/images'
+import { toast } from "@/styled-system/recipes"
+
+interface EditPageFormValues {
+  page_name: string
+  page_url: string
+  page_description: string
+  is_active: boolean
+  files: File[]
+}
 
 // Validation schema using Yup
 const validationSchema = Yup.object({
@@ -51,8 +63,14 @@ const validationSchema = Yup.object({
   files: Yup.array().of(Yup.mixed())
 })
 
-const CreatePageForm = () => {
+interface EditPageFormProps {
+  page: Page
+  images: Image[]
+}
+
+const EditPageForm = ({ page, images }: EditPageFormProps) => {
   const [files, setFiles] = useState<File[]>([])
+  const [existingImages, setExistingImages] = useState<Image[]>(images)
   const [isUploading, setIsUploading] = useState(false)
   const router = useRouter()
 
@@ -76,43 +94,68 @@ const CreatePageForm = () => {
     }
   }
 
+  const handleDeleteImage = async (imageId: string) => {
+    try {
+      await deleteImagesForPage(page.id, [imageId])
+      const updatedGallery = existingImages.filter((image) => image.id !== imageId).map((image) => image.id)
+      await updatePage(page.id, { gallery: updatedGallery }) as unknown as Page
+
+      if(updatedGallery.length > 0) {
+        setExistingImages(existingImages.filter((image) => image.id !== imageId) as Image[])
+      }
+
+      toast({
+        title: 'Image deleted',
+        description: 'Image has been deleted.',
+        status: 'success'
+      });
+    } catch (error) {
+      console.error('Error deleting image:', error);
+      toast({
+        title: 'Failed to delete image',
+        description: 'Please try again.',
+        status: 'error'
+      });
+    }
+  }
+
   const generateUrlSlug = (name: string): string => {
     return name.toLowerCase().replace(/ /g, '-').replace(/[^a-z0-9-]/g, '')
   }
 
-  const initialValues: CreatePageFormValues = {
-    page_name: '',
-    page_url: '',
-    page_description: '',
-    is_active: true,
+  const initialValues: EditPageFormValues = {
+    page_name: page.page_name,
+    page_url: page.page_url,
+    page_description: page.page_description,
+    is_active: page.is_active,
     files: []
   }
 
   const handleSubmit = async (
-    values: CreatePageFormValues,
-    { setSubmitting, setFieldError }: FormikHelpers<CreatePageFormValues>
+    values: EditPageFormValues,
+    { setSubmitting, setFieldError }: FormikHelpers<EditPageFormValues>
   ) => {
+    console.log('Form submitted!', values)
     try {
-      // 1. Create page first (without gallery)
-      const pageData: CreatePageInput = {
+      // 1. Update page basic info
+      const pageData: Partial<CreatePageInput> = {
         page_name: values.page_name,
         page_url: values.page_url,
         page_description: values.page_description,
         is_active: values.is_active,
-        gallery: [] // Start with empty gallery
       }
 
-      console.log('Creating page...', pageData)
-      const createdPage = await createPage(pageData)
-      console.log('Page created with ID:', createdPage.id)
+      console.log('Updating page...', pageData)
+      await updatePage(page.id, pageData)
+      console.log('Page updated')
 
-      // 2. Upload images and create image records (if any files are selected)
+      // 2. Upload new images and create image records (if any new files are selected)
       if (files.length > 0) {
         setIsUploading(true)
-        
+
         try {
           const uploadResponse = await uploadPageGalleryImages(files)
-          
+
           if (uploadResponse.totalErrors > 0) {
             console.warn('Some images failed to upload:', uploadResponse.results
               .filter((r: any) => !r.success)
@@ -127,18 +170,20 @@ const CreatePageForm = () => {
             return
           }
 
-          // Create image records in database with the actual page ID
-          const imageRecords = await createImagesForPage(uploadResponse, createdPage.id)
-          const galleryImageIds = imageRecords.map((img: any) => img.id)
-          
-          console.log('Created image records with IDs:', galleryImageIds)
+          // Create image records in database
+          const imageRecords = await createImagesForPage(uploadResponse, page.id)
+          const newGalleryImageIds = imageRecords.map((img: any) => img.id)
 
-          // Update the page with image IDs in gallery field
-          if (galleryImageIds.length > 0) {
-            await updatePage(createdPage.id, { gallery: galleryImageIds })
-            console.log('Updated page with gallery image IDs:', galleryImageIds)
-          }
-            
+          console.log('Created image records with IDs:', newGalleryImageIds)
+
+          // Merge with existing gallery IDs
+          const existingGallery = page.gallery || []
+          const updatedGallery = [...existingGallery, ...newGalleryImageIds]
+
+          // Update the page with combined gallery image IDs
+          await updatePage(page.id, { gallery: updatedGallery })
+          console.log('Updated page with gallery image IDs:', updatedGallery)
+
         } catch (uploadError) {
           console.error('Image upload failed:', uploadError)
           setFieldError('files', 'Failed to upload images. Please try again.')
@@ -148,11 +193,11 @@ const CreatePageForm = () => {
         }
       }
 
-      router.push('/dashboard/pages')
-      
+      router.refresh()
+
     } catch (error) {
-      console.error('Error creating page:', error)
-      setFieldError('page_name', 'Failed to create page. Please try again.')
+      console.error('Error updating page:', error)
+      setFieldError('page_name', 'Failed to update page. Please try again.')
     } finally {
       setSubmitting(false)
     }
@@ -163,8 +208,12 @@ const CreatePageForm = () => {
       initialValues={initialValues}
       validationSchema={validationSchema}
       onSubmit={handleSubmit}
+      validateOnChange={true}
+      validateOnBlur={true}
     >
-      {({ values, errors, touched, setFieldValue, isSubmitting }) => (
+      {({ values, errors, touched, setFieldValue, isSubmitting, isValid }) => {
+        console.log('Formik state:', { errors, touched, isSubmitting, isValid, isUploading })
+        return (
         <Form>
           <div className={css({
             display: 'flex',
@@ -178,10 +227,6 @@ const CreatePageForm = () => {
                 value={values.page_name}
                 onChange={(e) => {
                   setFieldValue('page_name', e.target.value)
-                  // Auto-generate URL slug when page name changes
-                  if (!values.page_url || values.page_url === generateUrlSlug(values.page_name)) {
-                    setFieldValue('page_url', generateUrlSlug(e.target.value))
-                  }
                 }}
                 placeholder="Enter page name"
               />
@@ -231,7 +276,7 @@ const CreatePageForm = () => {
             </Field.Root>
 
             <Field.Root>
-              <FormLabel>Gallery Images (Optional)</FormLabel>
+              <FormLabel>Add More Gallery Images (Optional)</FormLabel>
               <FileUpload.Root
                 maxFiles={30}
                 onFileChange={(details) => {
@@ -296,9 +341,9 @@ const CreatePageForm = () => {
                                     </FileUpload.ItemPreview>
                                     <div>
                                       <FileUpload.ItemName className={css({ fontWeight: 'medium' })} />
-                                      <FileUpload.ItemSizeText className={css({ 
-                                        fontSize: 'sm', 
-                                        color: 'gray.600' 
+                                      <FileUpload.ItemSizeText className={css({
+                                        fontSize: 'sm',
+                                        color: 'gray.600'
                                       })} />
                                     </div>
                                   </div>
@@ -323,21 +368,115 @@ const CreatePageForm = () => {
               )}
             </Field.Root>
 
-            <Button 
-              type="submit" 
-              disabled={isSubmitting || isUploading}
-              className={css({ mt: 4 })}
-            >
-              {isUploading 
-                ? 'Uploading Images...' 
-                : isSubmitting 
-                  ? 'Creating Page...' 
-                  : 'Create Page'
-              }
-            </Button>
+            {existingImages.length > 0 && (
+              <div className={css({ display: 'flex', flexDirection: 'column', gap: 3 })}>
+                <p className={css({ fontWeight: 'bold', mb: 1 })}>Images:</p>
+                <p>{images.length} items</p>
+                <Masonry
+                  breakpointCols={{
+                    default: 3,
+                    1100: 2,
+                    700: 1
+                  }}
+                  className={css({
+                    display: 'flex',
+                    marginLeft: '-16px',
+                    width: 'auto',
+                    mb: 3
+                  })}
+                  columnClassName={css({
+                    paddingLeft: '16px',
+                    backgroundClip: 'padding-box'
+                  })}
+                >
+                  {existingImages.map((image: Image) => (
+                    <div
+                      key={image.id}
+                      className={css({
+                        mb: 4,
+                        position: 'relative',
+                        width: '100%',
+                        borderRadius: 'md'
+                      })}
+                    >
+                      <IconButton size="sm" type="button" onClick={() => handleDeleteImage(image.id)} className={css({
+                        position: 'absolute',
+                        backgroundColor: 'white',
+                        borderRadius: 'full',
+                        border: "1px solid",
+                        borderColor: "#000",
+                        padding: 2,
+                        top: "-0.5rem",
+                        right: "-0.5rem",
+                        zIndex: 10,
+                        cursor: 'pointer'
+                      })}>
+                        <Trash2Icon stroke="#000" />
+                      </IconButton>
+                      <NextImage 
+                        src={image.image_url} 
+                        alt={image.image_description || 'Gallery image'}
+                        width={0}
+                        height={0}
+                        sizes="(max-width: 700px) 100vw, (max-width: 1100px) 50vw, 33vw"
+                        className={css({
+                          width: '100%',
+                          height: 'auto',
+                          display: 'block'
+                        })}
+                        quality={85}
+                        priority={false}
+                      />
+                    </div>
+                  ))}
+                </Masonry>
+              </div>
+            )}
+
+            {Object.keys(errors).length > 0 && (
+              <div className={css({
+                p: 3,
+                bg: 'red.50',
+                border: '1px solid',
+                borderColor: 'red.300',
+                borderRadius: 'md',
+                mb: 2
+              })}>
+                <p className={css({ fontWeight: 'bold', color: 'red.700', mb: 1 })}>
+                  Please fix the following errors:
+                </p>
+                <ul className={css({ listStyle: 'disc', pl: 5, color: 'red.600' })}>
+                  {Object.entries(errors).map(([field, error]) => (
+                    <li key={field}>{String(error)}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div className={css({ display: 'flex', gap: 2, mt: 4 })}>
+              <Button
+                type="submit"
+                disabled={isSubmitting || isUploading}
+              >
+                {isUploading
+                  ? 'Uploading Images...'
+                  : isSubmitting
+                    ? 'Updating Page...'
+                    : 'Update Page'
+                }
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.back()}
+              >
+                Cancel
+              </Button>
+            </div>
           </div>
         </Form>
-      )}
+        )
+      }}
     </Formik>
   )
 }
@@ -357,4 +496,4 @@ const SortableItem = ({ id, children }: { id: string, children: React.ReactNode 
   )
 }
 
-export default CreatePageForm
+export default EditPageForm
