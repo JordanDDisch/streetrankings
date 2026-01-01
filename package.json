@@ -15,7 +15,7 @@
     "db:migrate:make": "knex migrate:make"
   },
   "dependencies": {
-    "@ark-ui/react": "^3.13.0",
+    "@ark-ui/react": "^5.30.0",
     "@azure/app-configuration": "^1.9.0",
     "@azure/identity": "^4.10.0",
     "@azure/keyvault-secrets": "^4.9.0",

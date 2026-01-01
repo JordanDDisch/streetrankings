@@ -3,6 +3,7 @@ import { useState } from "react";
 import { saveAs } from 'file-saver';
 import { css } from "styled-system/css";
 import { Portal } from '@ark-ui/react/portal'
+import { createListCollection } from '@ark-ui/react/select'
 import { Template } from "@/types/templates";
 import { FileUpload } from '@/components/ui/file-upload'
 import { IconButton } from '@/components/ui/styled/icon-button'
@@ -28,6 +29,10 @@ const Listing = (): JSX.Element => {
     label: "Post",
     value: Template.POST
   }]
+
+  const collection = createListCollection({
+    items: templateOptions
+  })
 
   // Handle form submission to process the image
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -88,12 +93,12 @@ const Listing = (): JSX.Element => {
   return (
     <div>
       {images && images.length === 0 && <form onSubmit={handleSubmit} className={ css({ display: "flex", flexDirection: "column", gap: 4 }) }>
-        <Select.Root 
-          name="template" 
-          id="template" 
-          items={templateOptions}
+        <Select.Root
+          name="template"
+          id="template"
+          collection={collection}
           onValueChange={(details) => setTemplate(details.value[0])}
-          positioning={{ sameWidth: true }} 
+          positioning={{ sameWidth: true }}
           width="2xs"
         >
           <Select.Label>Image Dimensions</Select.Label>

@@ -48,11 +48,13 @@ const validationSchema = Yup.object({
     .required('Page description is required')
     .min(10, 'Page description must be at least 10 characters'),
   is_active: Yup.boolean(),
-  files: Yup.array().of(Yup.mixed())
+  files: Yup.array().of(Yup.mixed()),
+  heroImageFile: Yup.mixed().required('Hero image is required')
 })
 
 const CreatePageForm = () => {
   const [files, setFiles] = useState<File[]>([])
+  const [heroImageFile, setHeroImageFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const router = useRouter()
 
@@ -85,7 +87,8 @@ const CreatePageForm = () => {
     page_url: '',
     page_description: '',
     is_active: true,
-    files: []
+    files: [],
+    heroImageFile: null
   }
 
   const handleSubmit = async (
@@ -93,20 +96,51 @@ const CreatePageForm = () => {
     { setSubmitting, setFieldError }: FormikHelpers<CreatePageFormValues>
   ) => {
     try {
-      // 1. Create page first (without gallery)
+      setIsUploading(true)
+      
+      // 1. Upload hero image first
+      let heroImageUrl = ''
+      if (values.heroImageFile) {
+        try {
+          const heroImageResponse = await uploadPageGalleryImages([values.heroImageFile])
+          
+          if (heroImageResponse.totalErrors > 0 || heroImageResponse.results.length === 0) {
+            setFieldError('heroImageFile', 'Failed to upload hero image. Please try again.')
+            return
+          }
+          
+          const successfulUpload = heroImageResponse.results.find((r: any) => r.success && r.url)
+          if (!successfulUpload || !successfulUpload.url) {
+            setFieldError('heroImageFile', 'Failed to upload hero image. Please try again.')
+            return
+          }
+          
+          heroImageUrl = successfulUpload.url
+          console.log('Hero image uploaded:', heroImageUrl)
+        } catch (heroUploadError) {
+          console.error('Hero image upload failed:', heroUploadError)
+          setFieldError('heroImageFile', 'Failed to upload hero image. Please try again.')
+          return
+        }
+      }
+      
+      setIsUploading(false)
+      
+      // 2. Create page with hero image
       const pageData: CreatePageInput = {
         page_name: values.page_name,
         page_url: values.page_url,
         page_description: values.page_description,
         is_active: values.is_active,
-        gallery: [] // Start with empty gallery
+        gallery: [], // Start with empty gallery
+        hero_image: heroImageUrl
       }
 
       console.log('Creating page...', pageData)
       const createdPage = await createPage(pageData)
       console.log('Page created with ID:', createdPage.id)
 
-      // 2. Upload images and create image records (if any files are selected)
+      // 3. Upload gallery images and create image records (if any files are selected)
       if (files.length > 0) {
         setIsUploading(true)
         
@@ -228,6 +262,76 @@ const CreatePageForm = () => {
                 />
                 <span>Page is active</span>
               </label>
+            </Field.Root>
+
+            <Field.Root>
+              <FormLabel>Hero Image (Required)</FormLabel>
+              <FileUpload.Root
+                maxFiles={1}
+                onFileChange={(details) => {
+                  const file = details.acceptedFiles[0] || null
+                  setHeroImageFile(file)
+                  setFieldValue('heroImageFile', file)
+                }}
+              >
+                <FileUpload.Dropzone>
+                  <FileUpload.Label>Drop your hero image here or click to browse</FileUpload.Label>
+                  <FileUpload.Trigger asChild>
+                    <Button size="sm" type="button">Choose Hero Image</Button>
+                  </FileUpload.Trigger>
+                </FileUpload.Dropzone>
+                <FileUpload.ItemGroup>
+                  <FileUpload.Context>
+                    {({ acceptedFiles }) =>
+                      acceptedFiles.map((file, id) => (
+                        <FileUpload.Item key={id} file={file} className={css({
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: 2,
+                          p: 2,
+                          border: "1px solid",
+                          borderColor: "gray.200",
+                          borderRadius: "md",
+                          mb: 2
+                        })}>
+                          <div className={css({
+                            display: 'flex',
+                            flexDirection: 'row',
+                            gap: 2,
+                            alignItems: 'center'
+                          })}>
+                            <FileUpload.ItemPreview type="image/*">
+                              <FileUpload.ItemPreviewImage className={css({
+                                width: '100px',
+                                height: '100px',
+                                objectFit: 'cover',
+                                borderRadius: 'sm'
+                              })} />
+                            </FileUpload.ItemPreview>
+                            <div>
+                              <FileUpload.ItemName className={css({ fontWeight: 'medium' })} />
+                              <FileUpload.ItemSizeText className={css({ 
+                                fontSize: 'sm', 
+                                color: 'gray.600' 
+                              })} />
+                            </div>
+                          </div>
+                          <FileUpload.ItemDeleteTrigger asChild>
+                            <IconButton variant="link" size="sm" type="button">
+                              <Trash2Icon />
+                            </IconButton>
+                          </FileUpload.ItemDeleteTrigger>
+                        </FileUpload.Item>
+                      ))
+                    }
+                  </FileUpload.Context>
+                </FileUpload.ItemGroup>
+                <FileUpload.HiddenInput />
+              </FileUpload.Root>
+              {errors.heroImageFile && touched.heroImageFile && (
+                <Field.ErrorText>{String(errors.heroImageFile)}</Field.ErrorText>
+              )}
             </Field.Root>
 
             <Field.Root>

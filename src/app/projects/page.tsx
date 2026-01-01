@@ -2,42 +2,78 @@ import { Heading } from '@/components/ui/heading'
 import { Link } from '@/components/ui/link'
 import { getPages } from '@/app/actions/pages'
 import { css } from '@/styled-system/css'
-import CreatePageForm from '@/components/CreatePageForm'
 import type { Page } from '@/types/pages'
+import NextImage from 'next/image'
 
 export default async function Pages() {
   const pages: Page[] = await getPages()
+  const activePages = pages.filter((page) => page.is_active)
 
   return <div>
-    <Heading as="h1" size="4xl" mb={4}>Pages</Heading>
+    <Heading as="h1" size="4xl" mb={6}>Projects</Heading>
 
-    {pages.map((page: Page) => <div key={page.id} className={css({
-      display: "flex",
-      flexDirection: "column",
-      gap: 2,
-      p: 3,
-      border: "1px solid",
-      borderColor: "gray.200",
-      borderRadius: "md",
-      mb: 2
+    <div className={css({
+      display: 'grid',
+      gridTemplateColumns: { base: '1fr', md: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' },
+      gap: 6,
+      mb: 8
     })}>
-      <Link href={`/dashboard/pages/${page.id}`}>
-        <strong>{page.page_name}</strong>
-      </Link>
-      <p>{page.page_description}</p>
-      <div className={css({ fontSize: "sm", color: "gray.600" })}>
-        <span>URL: /{page.page_url}</span>
-        {page.is_active ? (
-          <span className={css({ ml: 2, color: "green.600" })}>• Active</span>
-        ) : (
-          <span className={css({ ml: 2, color: "red.600" })}>• Inactive</span>
-        )}
-      </div>
-    </div>)}
-
-    <div className={css({ mt: 6 })}>
-      <Heading as="h2" size="2xl" mb={4}>Create New Page</Heading>
-      <CreatePageForm />
+      {activePages.map((page: Page) => (
+        <Link 
+          key={page.id} 
+          href={`/projects/${page.page_url}`}
+          className={css({
+            display: 'block',
+            borderRadius: 'lg',
+            overflow: 'hidden',
+            border: '1px solid',
+            borderColor: 'gray.200',
+            transition: 'all 0.2s',
+            _hover: {
+              transform: 'translateY(-4px)',
+              boxShadow: 'lg',
+              borderColor: 'gray.300'
+            }
+          })}
+        >
+          {page.hero_image && (
+            <div className={css({ 
+              position: 'relative', 
+              width: '100%', 
+              height: '250px',
+              backgroundColor: 'gray.100'
+            })}>
+              <NextImage 
+                src={page.hero_image} 
+                alt={page.page_name}
+                fill
+                unoptimized={true}
+                className={css({
+                  objectFit: 'cover'
+                })}
+              />
+            </div>
+          )}
+          <div className={css({ p: 4 })}>
+            <Heading as="h3" size="xl" mb={2}>{page.page_name}</Heading>
+            <div 
+              className={css({ 
+                fontSize: 'sm', 
+                color: 'gray.600',
+                lineClamp: 3,
+                '& p': { margin: 0 }
+              })} 
+              dangerouslySetInnerHTML={{ __html: page.page_description }} 
+            />
+          </div>
+        </Link>
+      ))}
     </div>
+
+    {activePages.length === 0 && (
+      <div className={css({ textAlign: 'center', py: 8, color: 'gray.500' })}>
+        No projects available yet.
+      </div>
+    )}
   </div>
 }

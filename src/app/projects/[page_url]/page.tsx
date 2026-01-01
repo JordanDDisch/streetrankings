@@ -9,6 +9,42 @@ import { getImagesForPage } from '@/app/actions/images'
 import { Image } from '@/types/images'
 import { validateSession } from '@/lib/auth'
 import { css } from '@/styled-system/css'
+import type { Metadata } from 'next'
+import NextImage from 'next/image'
+
+export async function generateMetadata({ params }: { params: { page_url: string } }): Promise<Metadata> {
+  const page: Page | null = await getPage(params.page_url)
+
+  if (!page) {
+    return {
+      title: 'Page Not Found',
+    }
+  }
+
+  // Strip HTML tags from description for meta description
+  const plainTextDescription = page.page_description.replace(/<[^>]*>/g, '').substring(0, 160)
+
+  return {
+    title: page.page_name,
+    description: plainTextDescription,
+    openGraph: {
+      title: page.page_name,
+      description: plainTextDescription,
+      images: page.hero_image ? [
+        {
+          url: page.hero_image,
+          alt: page.page_name,
+        }
+      ] : [],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: page.page_name,
+      description: plainTextDescription,
+      images: page.hero_image ? [page.hero_image] : [],
+    },
+  }
+}
 
 export default async function PageDetails({ params }: { params: { page_url: string } }) {
   console.log('Page URL:', params.page_url)
@@ -30,6 +66,20 @@ export default async function PageDetails({ params }: { params: { page_url: stri
       )}
     </div>
     <div className="mt-4">
+      {page.hero_image && (
+        <div className={css({ mb: 6, position: 'relative', width: '100%', height: { base: '300px', md: '500px' }, borderRadius: 'lg', overflow: 'hidden' })}>
+          <NextImage 
+            src={page.hero_image} 
+            alt={page.page_name}
+            fill
+            unoptimized={true}
+            priority
+            className={css({
+              objectFit: 'cover'
+            })}
+          />
+        </div>
+      )}
       <div dangerouslySetInnerHTML={{ __html: page.page_description }} />
       {images && images.length > 0 && (
         <MasonryGallery images={images.map((image) => image.image_url)} />

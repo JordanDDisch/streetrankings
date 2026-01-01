@@ -43,6 +43,7 @@ interface EditPageFormValues {
   page_description: string
   is_active: boolean
   files: File[]
+  heroImageFile: File | null
 }
 
 // Validation schema using Yup
@@ -60,7 +61,8 @@ const validationSchema = Yup.object({
     .required('Page description is required')
     .min(10, 'Page description must be at least 10 characters'),
   is_active: Yup.boolean(),
-  files: Yup.array().of(Yup.mixed())
+  files: Yup.array().of(Yup.mixed()),
+  heroImageFile: Yup.mixed().nullable()
 })
 
 interface EditPageFormProps {
@@ -70,6 +72,7 @@ interface EditPageFormProps {
 
 const EditPageForm = ({ page, images }: EditPageFormProps) => {
   const [files, setFiles] = useState<File[]>([])
+  const [heroImageFile, setHeroImageFile] = useState<File | null>(null)
   const [existingImages, setExistingImages] = useState<Image[]>(images)
   const [isUploading, setIsUploading] = useState(false)
   const router = useRouter()
@@ -128,7 +131,8 @@ const EditPageForm = ({ page, images }: EditPageFormProps) => {
     page_url: page.page_url,
     page_description: page.page_description,
     is_active: page.is_active,
-    files: []
+    files: [],
+    heroImageFile: null
   }
 
   const handleSubmit = async (
@@ -137,19 +141,49 @@ const EditPageForm = ({ page, images }: EditPageFormProps) => {
   ) => {
     console.log('Form submitted!', values)
     try {
-      // 1. Update page basic info
+      // 1. Upload hero image if a new one is provided
+      let heroImageUrl = page.hero_image
+      if (values.heroImageFile) {
+        setIsUploading(true)
+        try {
+          const heroImageResponse = await uploadPageGalleryImages([values.heroImageFile])
+          
+          if (heroImageResponse.totalErrors > 0 || heroImageResponse.results.length === 0) {
+            setFieldError('heroImageFile', 'Failed to upload hero image. Please try again.')
+            return
+          }
+          
+          const successfulUpload = heroImageResponse.results.find((r: any) => r.success && r.url)
+          if (!successfulUpload) {
+            setFieldError('heroImageFile', 'Failed to upload hero image. Please try again.')
+            return
+          }
+          
+          heroImageUrl = successfulUpload.url
+          console.log('New hero image uploaded:', heroImageUrl)
+        } catch (heroUploadError) {
+          console.error('Hero image upload failed:', heroUploadError)
+          setFieldError('heroImageFile', 'Failed to upload hero image. Please try again.')
+          return
+        } finally {
+          setIsUploading(false)
+        }
+      }
+      
+      // 2. Update page basic info including hero image
       const pageData: Partial<CreatePageInput> = {
         page_name: values.page_name,
         page_url: values.page_url,
         page_description: values.page_description,
         is_active: values.is_active,
+        hero_image: heroImageUrl
       }
 
       console.log('Updating page...', pageData)
       await updatePage(page.id, pageData)
       console.log('Page updated')
 
-      // 2. Upload new images and create image records (if any new files are selected)
+      // 3. Upload new gallery images and create image records (if any new files are selected)
       if (files.length > 0) {
         setIsUploading(true)
 
@@ -273,6 +307,97 @@ const EditPageForm = ({ page, images }: EditPageFormProps) => {
                 />
                 <span>Page is active</span>
               </label>
+            </Field.Root>
+
+            <Field.Root>
+              <FormLabel>Hero Image</FormLabel>
+              {page.hero_image && !heroImageFile && (
+                <div className={css({ mb: 3, position: 'relative', width: 'fit-content' })}>
+                  <p className={css({ fontSize: 'sm', color: 'gray.600', mb: 2 })}>Current hero image:</p>
+                  <NextImage 
+                    src={page.hero_image} 
+                    alt="Current hero image"
+                    width={300}
+                    height={200}
+                    unoptimized={true}
+                    className={css({
+                      borderRadius: 'md',
+                      border: '1px solid',
+                      borderColor: 'gray.200'
+                    })}
+                  />
+                </div>
+              )}
+              <FileUpload.Root
+                maxFiles={1}
+                onFileChange={(details) => {
+                  const file = details.acceptedFiles[0] || null
+                  setHeroImageFile(file)
+                  setFieldValue('heroImageFile', file)
+                }}
+              >
+                <FileUpload.Dropzone>
+                  <FileUpload.Label>
+                    {page.hero_image ? 'Drop a new hero image here to replace the current one' : 'Drop your hero image here or click to browse'}
+                  </FileUpload.Label>
+                  <FileUpload.Trigger asChild>
+                    <Button size="sm" type="button">
+                      {page.hero_image ? 'Replace Hero Image' : 'Choose Hero Image'}
+                    </Button>
+                  </FileUpload.Trigger>
+                </FileUpload.Dropzone>
+                <FileUpload.ItemGroup>
+                  <FileUpload.Context>
+                    {({ acceptedFiles }) =>
+                      acceptedFiles.map((file, id) => (
+                        <FileUpload.Item key={id} file={file} className={css({
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: 2,
+                          p: 2,
+                          border: "1px solid",
+                          borderColor: "gray.200",
+                          borderRadius: "md",
+                          mb: 2
+                        })}>
+                          <div className={css({
+                            display: 'flex',
+                            flexDirection: 'row',
+                            gap: 2,
+                            alignItems: 'center'
+                          })}>
+                            <FileUpload.ItemPreview type="image/*">
+                              <FileUpload.ItemPreviewImage className={css({
+                                width: '100px',
+                                height: '100px',
+                                objectFit: 'cover',
+                                borderRadius: 'sm'
+                              })} />
+                            </FileUpload.ItemPreview>
+                            <div>
+                              <FileUpload.ItemName className={css({ fontWeight: 'medium' })} />
+                              <FileUpload.ItemSizeText className={css({ 
+                                fontSize: 'sm', 
+                                color: 'gray.600' 
+                              })} />
+                            </div>
+                          </div>
+                          <FileUpload.ItemDeleteTrigger asChild>
+                            <IconButton variant="link" size="sm" type="button">
+                              <Trash2Icon />
+                            </IconButton>
+                          </FileUpload.ItemDeleteTrigger>
+                        </FileUpload.Item>
+                      ))
+                    }
+                  </FileUpload.Context>
+                </FileUpload.ItemGroup>
+                <FileUpload.HiddenInput />
+              </FileUpload.Root>
+              {errors.heroImageFile && touched.heroImageFile && (
+                <Field.ErrorText>{String(errors.heroImageFile)}</Field.ErrorText>
+              )}
             </Field.Root>
 
             <Field.Root>

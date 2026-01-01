@@ -6,6 +6,7 @@ export interface Page {
   page_description: string;
   is_active: boolean;
   gallery: string[]; // Array of image UUIDs
+  hero_image?: string; // URL to the hero image
   created_at: Date;
   updated_at: Date;
 }
@@ -17,6 +18,7 @@ export interface CreatePageInput {
   page_description: string;
   is_active?: boolean;
   gallery?: string[];
+  hero_image?: string;
 }
 
 // Interface for form values (before submission)
@@ -26,4 +28,5 @@ export interface CreatePageFormValues {
   page_description: string;
   is_active: boolean;
   files: File[];
+  heroImageFile: File | null;
 } 

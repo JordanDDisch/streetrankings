@@ -13,7 +13,8 @@ export async function createPage(pageData: CreatePageInput): Promise<Page> {
     page_url: pageData.page_url,
     page_description: pageData.page_description,
     is_active: pageData.is_active ?? true,
-    gallery: pageData.gallery ?? []
+    gallery: pageData.gallery ?? [],
+    hero_image: pageData.hero_image ?? null
   }).returning('*')
 
   return page
