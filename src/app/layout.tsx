@@ -1,9 +1,17 @@
 import type { Metadata } from "next";
 import { css } from "@/styled-system/css"
-import { Inter } from "next/font/google";
+import { Inter, Oswald } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter"
+});
+
+const oswald = Oswald({
+  subsets: ["latin"],
+  variable: "--font-oswald"
+});
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -16,7 +24,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${inter.variable} ${oswald.variable}`}>
       <body className={inter.className}>
         <main>
           <div className={css({
