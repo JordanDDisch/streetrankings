@@ -91,10 +91,9 @@ const uploadImage = async (storage: Storage, bucketName: string, processedBuffer
     }
   });
 
-  // Make public if configured
-  if (config.makePublic !== false) {
-    await fileRef.makePublic();
-  }
+  // Note: With uniform bucket-level access enabled, individual file permissions 
+  // are not needed. The bucket-level IAM policy (roles/storage.objectViewer for allUsers)
+  // handles public read access.
 
   // Get public URL
   const publicUrl = `https://storage.googleapis.com/${bucketName}/${fileName}`;
@@ -237,9 +236,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ImageUploadRe
           }
         });
 
-        if (config.makePublic !== false) {
-          await zipFileRef.makePublic();
-        }
+        // Bucket-level IAM policy handles public access
 
         zipUrl = `https://storage.googleapis.com/${bucketName}/${zipFileName}`;
       } catch (error) {

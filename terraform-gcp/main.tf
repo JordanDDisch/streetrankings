@@ -268,6 +268,9 @@ resource "google_storage_bucket" "street_rankings_bucket" {
   location      = "australia-southeast1"
   force_destroy = false
   
+  # Enable uniform bucket-level access for better IAM control
+  uniform_bucket_level_access = true
+  
   # Optional: Configure versioning
   versioning {
     enabled = true
@@ -283,10 +286,25 @@ resource "google_storage_bucket" "street_rankings_bucket" {
     }
   }
   
+  # Configure CORS for web access from any origin (images are public)
+  cors {
+    origin          = ["*"]
+    method          = ["GET", "HEAD"]
+    response_header = ["*"]
+    max_age_seconds = 3600
+  }
+  
   # Protect against accidental deletion
   lifecycle {
     prevent_destroy = true
   }
+}
+
+# Make the bucket publicly readable
+resource "google_storage_bucket_iam_member" "public_read" {
+  bucket = google_storage_bucket.street_rankings_bucket.name
+  role   = "roles/storage.objectViewer"
+  member = "allUsers"
 }
 
 # Create Cloud SQL Database Instance
