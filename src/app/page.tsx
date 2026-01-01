@@ -20,7 +20,7 @@ export default async function Page() {
         <div className={css({ display: 'flex', alignItems: 'center', gap: 8, my: 4 })}>
           <NextImage src="/assets/images/jordan-disch.jpg" alt="Jordan Disch" width={100} height={100} className={css({ borderRadius: 'full' })} />
           <p className={css({ fontSize: 'lg', color: 'gray.600' })}>
-            Hi, I'm Jordan. I'm a software engineer, musician, and photographer. This is my portfolio website of my photography projects.
+            Hi, I&#39;m Jordan. I&#39;m a software engineer, musician, and photographer. This is my portfolio website of my photography projects.
           </p>
         </div>
       </div>
