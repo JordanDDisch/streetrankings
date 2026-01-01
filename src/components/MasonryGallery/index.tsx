@@ -33,7 +33,8 @@ export function MasonryGallery({ images }: { images: string[] }) {
             alt="Gallery image" 
             width={0} 
             height={0} 
-            sizes="(max-width: 700px) 100vw, (max-width: 1100px) 50vw, 33vw" 
+            sizes="(max-width: 700px) 100vw, (max-width: 1100px) 50vw, 33vw"
+            unoptimized={true}
             className={css({
               width: '100%',
               height: 'auto',
