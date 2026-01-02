@@ -43,6 +43,7 @@ styled-system-studio
 .env
 .env.production
 certificates
+*.ovpn
 
 # Terraform specific ignores
 # Local .terraform directories
