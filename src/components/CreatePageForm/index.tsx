@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Formik, Form, FormikHelpers } from 'formik'
 import * as Yup from 'yup'
 import { createPage, updatePage } from "@/app/actions/pages"
@@ -55,7 +55,9 @@ const validationSchema = Yup.object({
 const CreatePageForm = () => {
   const [files, setFiles] = useState<File[]>([])
   const [heroImageFile, setHeroImageFile] = useState<File | null>(null)
+  const [heroImagePreviewUrl, setHeroImagePreviewUrl] = useState<string>('')
   const [isUploading, setIsUploading] = useState(false)
+  const [previewUrls, setPreviewUrls] = useState<Map<string, string>>(new Map())
   const router = useRouter()
 
   const sensors = useSensors(
@@ -64,6 +66,50 @@ const CreatePageForm = () => {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   )
+
+  // Create and cleanup blob URL for hero image
+  useEffect(() => {
+    if (heroImageFile) {
+      const url = URL.createObjectURL(heroImageFile)
+      setHeroImagePreviewUrl(url)
+      
+      return () => {
+        URL.revokeObjectURL(url)
+      }
+    } else {
+      setHeroImagePreviewUrl('')
+    }
+  }, [heroImageFile])
+
+  // Create and cleanup blob URLs when gallery files change
+  useEffect(() => {
+    // Revoke old URLs that are no longer needed
+    const currentFileNames = new Set(files.map(f => f.name))
+    previewUrls.forEach((url, fileName) => {
+      if (!currentFileNames.has(fileName)) {
+        URL.revokeObjectURL(url)
+      }
+    })
+
+    // Create new URLs for new files
+    const newPreviewUrls = new Map<string, string>()
+    files.forEach(file => {
+      const existingUrl = previewUrls.get(file.name)
+      if (existingUrl) {
+        newPreviewUrls.set(file.name, existingUrl)
+      } else {
+        const url = URL.createObjectURL(file)
+        newPreviewUrls.set(file.name, url)
+      }
+    })
+    
+    setPreviewUrls(newPreviewUrls)
+
+    // Cleanup on unmount
+    return () => {
+      newPreviewUrls.forEach(url => URL.revokeObjectURL(url))
+    }
+  }, [files])
 
   function handleDragEnd(event: any) {
     const { active, over } = event
@@ -280,53 +326,59 @@ const CreatePageForm = () => {
                     <Button size="sm" type="button">Choose Hero Image</Button>
                   </FileUpload.Trigger>
                 </FileUpload.Dropzone>
-                <FileUpload.ItemGroup>
-                  <FileUpload.Context>
-                    {({ acceptedFiles }) =>
-                      acceptedFiles.map((file, id) => (
-                        <FileUpload.Item key={id} file={file} className={css({
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: 2,
-                          p: 2,
-                          border: "1px solid",
-                          borderColor: "gray.200",
-                          borderRadius: "md",
-                          mb: 2
+                {heroImageFile && (
+                  <div className={css({
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 2,
+                    p: 2,
+                    border: "1px solid",
+                    borderColor: "gray.200",
+                    borderRadius: "md",
+                    mt: 2
+                  })}>
+                    <div className={css({
+                      display: 'flex',
+                      flexDirection: 'row',
+                      gap: 2,
+                      alignItems: 'center'
+                    })}>
+                      {heroImagePreviewUrl && (
+                        <img 
+                          src={heroImagePreviewUrl}
+                          alt={heroImageFile.name}
+                          className={css({
+                            width: '100px',
+                            height: '100px',
+                            objectFit: 'cover',
+                            borderRadius: 'sm'
+                          })} 
+                        />
+                      )}
+                      <div>
+                        <div className={css({ fontWeight: 'medium' })}>{heroImageFile.name}</div>
+                        <div className={css({ 
+                          fontSize: 'sm', 
+                          color: 'gray.600' 
                         })}>
-                          <div className={css({
-                            display: 'flex',
-                            flexDirection: 'row',
-                            gap: 2,
-                            alignItems: 'center'
-                          })}>
-                            <FileUpload.ItemPreview type="image/*">
-                              <FileUpload.ItemPreviewImage className={css({
-                                width: '100px',
-                                height: '100px',
-                                objectFit: 'cover',
-                                borderRadius: 'sm'
-                              })} />
-                            </FileUpload.ItemPreview>
-                            <div>
-                              <FileUpload.ItemName className={css({ fontWeight: 'medium' })} />
-                              <FileUpload.ItemSizeText className={css({ 
-                                fontSize: 'sm', 
-                                color: 'gray.600' 
-                              })} />
-                            </div>
-                          </div>
-                          <FileUpload.ItemDeleteTrigger asChild>
-                            <IconButton variant="link" size="sm" type="button">
-                              <Trash2Icon />
-                            </IconButton>
-                          </FileUpload.ItemDeleteTrigger>
-                        </FileUpload.Item>
-                      ))
-                    }
-                  </FileUpload.Context>
-                </FileUpload.ItemGroup>
+                          {(heroImageFile.size / 1024).toFixed(0)} kB
+                        </div>
+                      </div>
+                    </div>
+                    <IconButton 
+                      variant="link" 
+                      size="sm" 
+                      type="button"
+                      onClick={() => {
+                        setHeroImageFile(null)
+                        setFieldValue('heroImageFile', null)
+                      }}
+                    >
+                      <Trash2Icon />
+                    </IconButton>
+                  </div>
+                )}
                 <FileUpload.HiddenInput />
               </FileUpload.Root>
               {errors.heroImageFile && touched.heroImageFile && (
@@ -349,77 +401,90 @@ const CreatePageForm = () => {
                     <Button size="sm" type="button">Choose Images</Button>
                   </FileUpload.Trigger>
                 </FileUpload.Dropzone>
-                <FileUpload.ItemGroup>
-                  <FileUpload.Context>
-                    {() => (
-                      <DndContext
-                        sensors={sensors}
-                        collisionDetection={closestCenter}
-                        onDragEnd={handleDragEnd}
-                      >
-                        <SortableContext
-                          items={files.map((file) => ({ id: file.name }))}
-                          strategy={verticalListSortingStrategy}
-                        >
-                          {files.map((file) => (
-                            <SortableItem id={file.name} key={file.name}>
-                              <FileUpload.Item file={file} className={css({
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={files.map((file) => file.name)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <FileUpload.ItemGroup>
+                      {files.map((file) => {
+                        const previewUrl = previewUrls.get(file.name) || ''
+                        
+                        return (
+                          <SortableItem id={file.name} key={file.name}>
+                            <FileUpload.Item file={file} className={css({
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: 2,
+                              p: 2,
+                              border: "1px solid",
+                              borderColor: "gray.200",
+                              borderRadius: "md",
+                              mb: 2
+                            })}>
+                              <div className={css({
                                 display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
+                                flexDirection: 'row',
                                 gap: 2,
-                                p: 2,
-                                border: "1px solid",
-                                borderColor: "gray.200",
-                                borderRadius: "md",
-                                mb: 2
+                                alignItems: 'center'
                               })}>
+                                <Grip className={css({
+                                  cursor: 'grab',
+                                  color: 'gray.500'
+                                })} />
                                 <div className={css({
                                   display: 'flex',
                                   flexDirection: 'row',
                                   gap: 2,
                                   alignItems: 'center'
                                 })}>
-                                  <Grip className={css({
-                                    cursor: 'grab',
-                                    color: 'gray.500'
-                                  })} />
-                                  <div className={css({
-                                    display: 'flex',
-                                    flexDirection: 'row',
-                                    gap: 2,
-                                    alignItems: 'center'
-                                  })}>
-                                    <FileUpload.ItemPreview type="image/*">
-                                      <FileUpload.ItemPreviewImage className={css({
+                                  {previewUrl && (
+                                    <img 
+                                      src={previewUrl}
+                                      alt={file.name}
+                                      className={css({
                                         width: '50px',
                                         height: '50px',
                                         objectFit: 'cover',
                                         borderRadius: 'sm'
-                                      })} />
-                                    </FileUpload.ItemPreview>
-                                    <div>
-                                      <FileUpload.ItemName className={css({ fontWeight: 'medium' })} />
-                                      <FileUpload.ItemSizeText className={css({ 
-                                        fontSize: 'sm', 
-                                        color: 'gray.600' 
-                                      })} />
+                                      })} 
+                                    />
+                                  )}
+                                  <div>
+                                    <div className={css({ fontWeight: 'medium' })}>{file.name}</div>
+                                    <div className={css({ 
+                                      fontSize: 'sm', 
+                                      color: 'gray.600' 
+                                    })}>
+                                      {(file.size / 1024).toFixed(0)} kB
                                     </div>
                                   </div>
                                 </div>
-                                <FileUpload.ItemDeleteTrigger asChild>
-                                  <IconButton variant="link" size="sm" type="button">
-                                    <Trash2Icon />
-                                  </IconButton>
-                                </FileUpload.ItemDeleteTrigger>
-                              </FileUpload.Item>
-                            </SortableItem>
-                          ))}
-                        </SortableContext>
-                      </DndContext>
-                    )}
-                  </FileUpload.Context>
-                </FileUpload.ItemGroup>
+                              </div>
+                              <IconButton 
+                                variant="link" 
+                                size="sm" 
+                                type="button"
+                                onClick={() => {
+                                  const newFiles = files.filter(f => f.name !== file.name)
+                                  setFiles(newFiles)
+                                  setFieldValue('files', newFiles)
+                                }}
+                              >
+                                <Trash2Icon />
+                              </IconButton>
+                            </FileUpload.Item>
+                          </SortableItem>
+                        )
+                      })}
+                    </FileUpload.ItemGroup>
+                  </SortableContext>
+                </DndContext>
                 <FileUpload.HiddenInput />
               </FileUpload.Root>
               {errors.files && touched.files && (
