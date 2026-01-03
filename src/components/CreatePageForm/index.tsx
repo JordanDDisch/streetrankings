@@ -52,6 +52,8 @@ const validationSchema = Yup.object({
     .required('Sort order is required')
     .integer('Sort order must be a whole number')
     .min(0, 'Sort order must be 0 or greater'),
+  keywords: Yup.string()
+    .max(500, 'Keywords must be less than 500 characters'),
   files: Yup.array().of(Yup.mixed()),
   heroImageFile: Yup.mixed().required('Hero image is required')
 })
@@ -139,7 +141,8 @@ const CreatePageForm = () => {
     is_active: true,
     sort_order: 0,
     files: [],
-    heroImageFile: null
+    heroImageFile: null,
+    keywords: ''
   }
 
   const handleSubmit = async (
@@ -185,7 +188,8 @@ const CreatePageForm = () => {
         is_active: values.is_active,
         sort_order: values.sort_order,
         gallery: [], // Start with empty gallery
-        hero_image: heroImageUrl
+        hero_image: heroImageUrl,
+        keywords: values.keywords
       }
 
       console.log('Creating page...', pageData)
@@ -329,6 +333,20 @@ const CreatePageForm = () => {
               />
               {errors.sort_order && touched.sort_order && (
                 <Field.ErrorText>{errors.sort_order}</Field.ErrorText>
+              )}
+            </Field.Root>
+
+            <Field.Root>
+              <Field.Label>Keywords</Field.Label>
+              <Field.Input
+                name="keywords"
+                value={values.keywords}
+                onChange={(e) => setFieldValue('keywords', e.target.value)}
+                placeholder="Enter SEO keywords (comma-separated)"
+              />
+              <Field.HelperText>Enter keywords for SEO metadata (e.g., photography, street art, urban)</Field.HelperText>
+              {errors.keywords && touched.keywords && (
+                <Field.ErrorText>{errors.keywords}</Field.ErrorText>
               )}
             </Field.Root>
 

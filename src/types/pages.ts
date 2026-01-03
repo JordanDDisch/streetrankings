@@ -8,6 +8,7 @@ export interface Page {
   sort_order: number;
   gallery: string[]; // Array of image UUIDs
   hero_image?: string; // URL to the hero image
+  keywords?: string; // SEO keywords for metadata
   created_at: Date;
   updated_at: Date;
 }
@@ -21,6 +22,7 @@ export interface CreatePageInput {
   sort_order?: number;
   gallery?: string[];
   hero_image?: string;
+  keywords?: string;
 }
 
 // Interface for form values (before submission)
@@ -32,4 +34,5 @@ export interface CreatePageFormValues {
   sort_order: number;
   files: File[];
   heroImageFile: File | null;
+  keywords: string;
 } 

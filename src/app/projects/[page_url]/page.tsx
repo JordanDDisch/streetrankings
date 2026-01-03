@@ -27,6 +27,7 @@ export async function generateMetadata({ params }: { params: { page_url: string 
   return {
     title: page.page_name,
     description: plainTextDescription,
+    keywords: page.keywords || '',
     openGraph: {
       title: page.page_name,
       description: plainTextDescription,

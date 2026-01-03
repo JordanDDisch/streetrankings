@@ -45,6 +45,7 @@ interface EditPageFormValues {
   sort_order: number
   files: File[]
   heroImageFile: File | null
+  keywords: string
 }
 
 // Validation schema using Yup
@@ -66,6 +67,8 @@ const validationSchema = Yup.object({
     .required('Sort order is required')
     .integer('Sort order must be a whole number')
     .min(0, 'Sort order must be 0 or greater'),
+  keywords: Yup.string()
+    .max(500, 'Keywords must be less than 500 characters'),
   files: Yup.array().of(Yup.mixed()),
   heroImageFile: Yup.mixed().nullable()
 })
@@ -138,7 +141,8 @@ const EditPageForm = ({ page, images }: EditPageFormProps) => {
     is_active: page.is_active,
     sort_order: page.sort_order,
     files: [],
-    heroImageFile: null
+    heroImageFile: null,
+    keywords: page.keywords || ''
   }
 
   const handleSubmit = async (
@@ -183,7 +187,8 @@ const EditPageForm = ({ page, images }: EditPageFormProps) => {
         page_description: values.page_description,
         is_active: values.is_active,
         sort_order: values.sort_order,
-        hero_image: heroImageUrl
+        hero_image: heroImageUrl,
+        keywords: values.keywords
       }
 
       console.log('Updating page...', pageData)
@@ -329,6 +334,20 @@ const EditPageForm = ({ page, images }: EditPageFormProps) => {
               />
               {errors.sort_order && touched.sort_order && (
                 <Field.ErrorText>{errors.sort_order}</Field.ErrorText>
+              )}
+            </Field.Root>
+
+            <Field.Root>
+              <Field.Label>Keywords</Field.Label>
+              <Field.Input
+                name="keywords"
+                value={values.keywords}
+                onChange={(e) => setFieldValue('keywords', e.target.value)}
+                placeholder="Enter SEO keywords (comma-separated)"
+              />
+              <Field.HelperText>Enter keywords for SEO metadata (e.g., photography, street art, urban)</Field.HelperText>
+              {errors.keywords && touched.keywords && (
+                <Field.ErrorText>{errors.keywords}</Field.ErrorText>
               )}
             </Field.Root>
 
