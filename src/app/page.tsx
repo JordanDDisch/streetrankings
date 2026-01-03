@@ -11,7 +11,7 @@ export async function generateMetadata({ params }: { params: { page_url: string 
 
   return {
     title: 'Jordan Disch - Photographer, Musician, and Software Engineer',
-    description: 'Hi, I\'m Jordan. I\'m a software engineer, musician, and photographer. This is my portfolio website of my photography projects.',
+    description: 'Hi, I\'m Jordan. I\'m a software engineer, musician, and photographer. This is my portfolio website of my photography projects. I shoot street photography, urban landscapes, and street art. The photos are a mix of digital and film.',
     openGraph: {
       title: "Jordan D Disch - Street Rankings - Photographer, Musician, and Software Engineer",
       description: 'Hi, I\'m Jordan. I\'m a software engineer, musician, and photographer. This is my portfolio website of my photography projects.',
@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: { params: { page_url: string 
     twitter: {
       card: 'summary_large_image',
       title: 'Jordan Disch - Photographer, Musician, and Software Engineer',
-      description: 'Hi, I\'m Jordan. I\'m a software engineer, musician, and photographer. This is my portfolio website of my photography projects.',
+      description: 'Hi, I\'m Jordan. I\'m a software engineer, musician, and photographer. This is my portfolio website of my photography projects. I shoot street photography, urban landscapes, and street art. The photos are a mix of digital and film.',
       images: ['/assets/images/jordan-disch.jpg'],
     },
   }
@@ -40,7 +40,7 @@ export default async function Page() {
         <div className={css({ display: 'flex', alignItems: 'center', gap: 8, my: 4 })}>
           <NextImage src="/assets/images/jordan-disch.jpg" alt="Jordan Disch" width={100} height={100} className={css({ borderRadius: 'full' })} />
           <p className={css({ fontSize: 'lg', color: 'gray.600' })}>
-            Hi, I&#39;m Jordan. I&#39;m a photographer, musician, and software engineer. This is my portfolio website of my photography projects.
+            Hi, I&#39;m Jordan. I&#39;m a photographer, musician, and software engineer. This is my portfolio website of my photography projects. I shoot street photography, urban landscapes, and street art. The photos are a mix of digital and film.
           </p>
         </div>
       </div>
