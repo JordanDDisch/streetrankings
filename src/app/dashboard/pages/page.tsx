@@ -19,21 +19,33 @@ export default async function Pages() {
       mb: 6
     })}>
       {pages.map((page: Page) => (
-        <Link 
-          key={page.id} 
-          href={`/dashboard/pages/${page.page_url}`}
+        <article 
+          key={page.id}
           className={css({
+            position: 'relative',
             display: 'block',
             borderRadius: 'md',
             overflow: 'hidden',
             border: '1px solid',
             borderColor: 'gray.200',
             transition: 'all 0.2s',
+            boxShadow: 'sm',
             _hover: {
-              borderColor: 'gray.400'
+              borderColor: 'gray.400',
+              boxShadow: 'md',
+              transform: 'translateY(-2px)'
             }
           })}
         >
+          <Link 
+            href={`/dashboard/pages/${page.page_url}`}
+            className={css({
+              position: 'absolute',
+              inset: 0,
+              zIndex: 1
+            })}
+            aria-label={`Edit ${page.page_name}`}
+          />
           {page.hero_image && (
             <div className={css({ 
               position: 'relative', 
@@ -73,7 +85,7 @@ export default async function Pages() {
               )}
             </div>
           </div>
-        </Link>
+        </article>
       ))}
     </div>
 

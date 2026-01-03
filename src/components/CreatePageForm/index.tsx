@@ -48,6 +48,10 @@ const validationSchema = Yup.object({
     .required('Page description is required')
     .min(10, 'Page description must be at least 10 characters'),
   is_active: Yup.boolean(),
+  sort_order: Yup.number()
+    .required('Sort order is required')
+    .integer('Sort order must be a whole number')
+    .min(0, 'Sort order must be 0 or greater'),
   files: Yup.array().of(Yup.mixed()),
   heroImageFile: Yup.mixed().required('Hero image is required')
 })
@@ -133,6 +137,7 @@ const CreatePageForm = () => {
     page_url: '',
     page_description: '',
     is_active: true,
+    sort_order: 0,
     files: [],
     heroImageFile: null
   }
@@ -178,6 +183,7 @@ const CreatePageForm = () => {
         page_url: values.page_url,
         page_description: values.page_description,
         is_active: values.is_active,
+        sort_order: values.sort_order,
         gallery: [], // Start with empty gallery
         hero_image: heroImageUrl
       }
@@ -308,6 +314,22 @@ const CreatePageForm = () => {
                 />
                 <span>Page is active</span>
               </label>
+            </Field.Root>
+
+            <Field.Root>
+              <Field.Label>Sort Order</Field.Label>
+              <Field.Input
+                type="number"
+                name="sort_order"
+                value={values.sort_order}
+                onChange={(e) => {
+                  setFieldValue('sort_order', parseInt(e.target.value) || 0)
+                }}
+                placeholder="Enter sort order (0, 1, 2, etc.)"
+              />
+              {errors.sort_order && touched.sort_order && (
+                <Field.ErrorText>{errors.sort_order}</Field.ErrorText>
+              )}
             </Field.Root>
 
             <Field.Root>

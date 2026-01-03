@@ -3,7 +3,7 @@ import db from '@/lib/db'
 import { CreatePageInput, Page } from '@/types/pages'
 
 export async function getPages(): Promise<Page[]> {
-  const pages = await db('pages').select('*').orderBy('created_at', 'desc')
+  const pages = await db('pages').select('*').orderBy('sort_order', 'asc')
   return pages
 }
 
@@ -13,6 +13,7 @@ export async function createPage(pageData: CreatePageInput): Promise<Page> {
     page_url: pageData.page_url,
     page_description: pageData.page_description,
     is_active: pageData.is_active ?? true,
+    sort_order: pageData.sort_order ?? 0,
     gallery: pageData.gallery ?? [],
     hero_image: pageData.hero_image ?? null
   }).returning('*')

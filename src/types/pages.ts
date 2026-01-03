@@ -5,6 +5,7 @@ export interface Page {
   page_url: string;
   page_description: string;
   is_active: boolean;
+  sort_order: number;
   gallery: string[]; // Array of image UUIDs
   hero_image?: string; // URL to the hero image
   created_at: Date;
@@ -17,6 +18,7 @@ export interface CreatePageInput {
   page_url: string;
   page_description: string;
   is_active?: boolean;
+  sort_order?: number;
   gallery?: string[];
   hero_image?: string;
 }
@@ -27,6 +29,7 @@ export interface CreatePageFormValues {
   page_url: string;
   page_description: string;
   is_active: boolean;
+  sort_order: number;
   files: File[];
   heroImageFile: File | null;
 } 
