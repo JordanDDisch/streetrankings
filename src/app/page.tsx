@@ -1,10 +1,30 @@
 import { Heading } from "@/components/ui/heading";
-import { Link } from "@/components/ui/link";
+import Link from "next/link";
 import { css } from "@/styled-system/css"
 import { getPages } from '@/app/actions/pages'
 import type { Page } from '@/types/pages'
 import NextImage from 'next/image'
 import './globals.css';
+import { Metadata } from "next";
+
+export async function generateMetadata({ params }: { params: { page_url: string } }): Promise<Metadata> {
+
+  return {
+    title: 'Jordan Disch - Photographer, Musician, and Software Engineer',
+    description: 'Hi, I\'m Jordan. I\'m a software engineer, musician, and photographer. This is my portfolio website of my photography projects.',
+    openGraph: {
+      title: "Jordan D Disch - Street Rankings - Photographer, Musician, and Software Engineer",
+      description: 'Hi, I\'m Jordan. I\'m a software engineer, musician, and photographer. This is my portfolio website of my photography projects.',
+      images: ['/assets/images/jordan-disch.jpg'],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: 'Jordan Disch - Photographer, Musician, and Software Engineer',
+      description: 'Hi, I\'m Jordan. I\'m a software engineer, musician, and photographer. This is my portfolio website of my photography projects.',
+      images: ['/assets/images/jordan-disch.jpg'],
+    },
+  }
+}
 
 export default async function Page() {
   const allPages: Page[] = await getPages()
@@ -15,12 +35,12 @@ export default async function Page() {
     <div>
       <div>
         <Heading as="h1" size="4xl" mb={2}>
-          Jordan Disch - Software Engineer, Musician, and Photographer
+          Jordan Disch - Photographer, Musician, and Software Engineer
         </Heading>
         <div className={css({ display: 'flex', alignItems: 'center', gap: 8, my: 4 })}>
           <NextImage src="/assets/images/jordan-disch.jpg" alt="Jordan Disch" width={100} height={100} className={css({ borderRadius: 'full' })} />
           <p className={css({ fontSize: 'lg', color: 'gray.600' })}>
-            Hi, I&#39;m Jordan. I&#39;m a software engineer, musician, and photographer. This is my portfolio website of my photography projects.
+            Hi, I&#39;m Jordan. I&#39;m a photographer, musician, and software engineer. This is my portfolio website of my photography projects.
           </p>
         </div>
       </div>
@@ -43,10 +63,10 @@ export default async function Page() {
           gap: 6,
         })}>
           {activePages.map((page: Page) => (
-            <Link 
-              key={page.id} 
-              href={`/projects/${page.page_url}`}
+            <article 
+              key={page.id}
               className={css({
+                position: 'relative',
                 display: 'block',
                 borderRadius: 'lg',
                 overflow: 'hidden',
@@ -61,6 +81,15 @@ export default async function Page() {
                 }
               })}
             >
+              <Link 
+                href={`/projects/${page.page_url}`}
+                className={css({
+                  position: 'absolute',
+                  inset: 0,
+                  zIndex: 1
+                })}
+                aria-label={`View ${page.page_name}`}
+              />
               {page.hero_image && (
                 <div className={css({ 
                   position: 'relative', 
@@ -101,7 +130,7 @@ export default async function Page() {
                   dangerouslySetInnerHTML={{ __html: page.page_description }} 
                 />
               </div>
-            </Link>
+            </article>
           ))}
         </div>
       )}

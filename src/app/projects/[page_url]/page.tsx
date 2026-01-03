@@ -1,6 +1,5 @@
 import { getPage } from '@/app/actions/pages'
 import { Heading } from '@/components/ui/heading'
-import { Button } from '@/components/ui/button'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Page } from '@/types/pages'
@@ -11,6 +10,7 @@ import { validateSession } from '@/lib/auth'
 import { css } from '@/styled-system/css'
 import type { Metadata } from 'next'
 import NextImage from 'next/image'
+import { button } from '@/styled-system/recipes'
 
 export async function generateMetadata({ params }: { params: { page_url: string } }): Promise<Metadata> {
   const page: Page | null = await getPage(params.page_url)
@@ -30,18 +30,18 @@ export async function generateMetadata({ params }: { params: { page_url: string 
     openGraph: {
       title: page.page_name,
       description: plainTextDescription,
-      images: page.hero_image ? [
+      images: [
         {
-          url: page.hero_image,
-          alt: page.page_name,
+          url: 'https://jordan-disch.com/assets/images/IMG_6101.jpg',
+          alt: 'Jordan Disch - Street Rankings',
         }
-      ] : [],
+      ],
     },
     twitter: {
       card: 'summary_large_image',
       title: page.page_name,
       description: plainTextDescription,
-      images: page.hero_image ? [page.hero_image] : [],
+      images: ['https://jordan-disch.com/assets/images/IMG_6101.jpg'],
     },
   }
 }
@@ -60,8 +60,8 @@ export default async function PageDetails({ params }: { params: { page_url: stri
     <div className={css({ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 })}>
       <Heading as="h1" size="4xl" textAlign="center">{page.page_name}</Heading>
       {session && (
-        <Link href={`/dashboard/pages/${params.page_url}`}>
-          <Button>Edit</Button>
+        <Link href={`/dashboard/pages/${params.page_url}`} className={button()}>
+          Edit
         </Link>
       )}
     </div>
