@@ -10,7 +10,7 @@ import { Metadata } from "next";
 export async function generateMetadata({ params }: { params: { page_url: string } }): Promise<Metadata> {
 
   return {
-    title: 'Jordan Disch - Photographer, Musician, and Software Engineer',
+    title: 'Jordan Disch - Photographer, Musician, and Software Engineer ',
     description: 'Hi, I\'m Jordan. I\'m a software engineer, musician, and photographer. This is my portfolio website of my photography projects. I shoot street photography, urban landscapes, and street art. The photos are a mix of digital and film.',
     openGraph: {
       title: "Jordan D Disch - Street Rankings - Photographer, Musician, and Software Engineer",
